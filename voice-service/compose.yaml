@@ -1,0 +1,41 @@
+services:
+  voice:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      HF_HOME: /cache
+      VOICE_SERVICE_SECRET: ${VOICE_SERVICE_SECRET:?Set VOICE_SERVICE_SECRET in .env.local}
+      MOONSHINE_MODEL: ${MOONSHINE_MODEL:-UsefulSensors/moonshine-streaming-small}
+      MOONSHINE_CACHE: /cache/moonshine
+      VOICE_SILERO_MODEL_PATH: /models/silero_vad_16k_op15.onnx
+      VOICE_ENDPOINT_SILENCE_MS: ${VOICE_ENDPOINT_SILENCE_MS:-2000}
+    volumes:
+      - johnny-voice-models:/cache
+      - ./models:/models:ro
+    restart: unless-stopped
+
+  tts:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts
+    ports:
+      - "127.0.0.1:8766:8766"
+    environment:
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      HF_HOME: /cache
+      VOICE_SERVICE_SECRET: ${VOICE_SERVICE_SECRET:?Set VOICE_SERVICE_SECRET in .env.local}
+      KOKORO_VOICE: ${KOKORO_VOICE:-am_michael}
+      KOKORO_LANGUAGE: ${KOKORO_LANGUAGE:-a}
+      KOKORO_SPEED: ${KOKORO_SPEED:-1.0}
+      VOICE_TTS_LAZY_LOAD: ${VOICE_TTS_LAZY_LOAD:-0}
+    volumes:
+      - johnny-voice-models:/cache
+    restart: unless-stopped
+
+volumes:
+  johnny-voice-models:
+    external: true

@@ -1,0 +1,41 @@
+/* SVG reactor: no WebGL renderer or per-frame geometry updates. */
+.reactor-stage { width: min(420px, 68vw); position: relative; }
+.arc-reactor { color: #79e0e5; width: 100%; }
+.reactor-face { position: relative; aspect-ratio: 1; background: radial-gradient(circle, #08252990 0%, #08252940 40%, transparent 65%); }
+.reactor-dial { width: 100%; height: 100%; filter: drop-shadow(0 0 5px #59dde52b); }
+.reactor-core { position: absolute; inset: 30% 20%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.reactor-eyebrow { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .3em; color: #72aeb5; }
+.reactor-clock { font: 400 clamp(32px, 4vw, 46px) var(--font-orbitron), sans-serif; letter-spacing: -.045em; font-variant-numeric: tabular-nums; color: #dbffff; line-height: 1.4; white-space: nowrap; }
+.reactor-clock span { font: 12px var(--font-orbitron), sans-serif; letter-spacing: .05em; margin-left: 8px; color: #7ab8bd; }
+.reactor-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(26px, 4vw, 46px); font-weight: 500; letter-spacing: .15em; margin: 12px 0; color: #e1ffff; text-shadow: 0 0 18px #75e8f266; }
+.reactor-divider { height: 1px; width: 70%; background: linear-gradient(90deg, transparent, #7ae5ee90, transparent); margin-bottom: 12px; }
+.reactor-status { font-size: 10px; text-transform: uppercase; letter-spacing: .22em; text-align: center; }
+.reactor-date { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-top: 10px; color: #63929a; }
+.reactor-rotor, .reactor-inner-rotor { transform-origin: 300px 300px; }
+.reactor-rotor { animation: reactor-turn 60s linear infinite; }
+.reactor-inner-rotor { animation: reactor-turn 90s linear infinite reverse; }
+.reactor-busy .reactor-rotor { animation-duration: 24s; }
+/* Speaking changes from rotation to illuminated segments; no expanding ripple. */
+.reactor-speaking .reactor-rotor,
+.reactor-speaking .reactor-inner-rotor { animation-play-state: paused; }
+.reactor-speaking .reactor-rotor { animation: reactor-voice-glow 1.8s ease-in-out infinite; }
+.reactor-speaking .reactor-inner-rotor circle { animation: reactor-segments 3s linear infinite; }
+.reactor-speaking .reactor-name { animation: reactor-name-glow 2.4s ease-in-out infinite; }
+.reactor-speaking .reactor-dial { filter: drop-shadow(0 0 7px #59dde566); }
+@keyframes reactor-turn { to { transform: rotate(360deg); } }
+@keyframes reactor-voice-glow {
+  0%, 100% { opacity: .5; }
+  45% { opacity: 1; }
+  70% { opacity: .75; }
+}
+@keyframes reactor-segments { to { stroke-dashoffset: -240; } }
+@keyframes reactor-name-glow {
+  0%, 100% { text-shadow: 0 0 10px #75e8f244; }
+  50% { text-shadow: 0 0 22px #75e8f299; }
+}
+@media (max-width: 767px) {
+  .reactor-clock { font-size: clamp(28px, 8vw, 36px); }
+  .reactor-name { font-size: 28px; }
+  .reactor-eyebrow, .reactor-date { font-size: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .arc-reactor *, .arc-reactor *::before, .arc-reactor *::after { animation: none !important; } }

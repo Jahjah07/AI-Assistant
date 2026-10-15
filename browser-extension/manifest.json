@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Jimmy Activity Journal",
+  "version": "0.1.0",
+  "description": "Send active page titles and URLs to your local Jimmy daily journal.",
+  "permissions": ["tabs", "storage", "alarms", "idle"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_title": "Open Jimmy journal settings" },
+  "incognito": "not_allowed"
+}

@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Jimmy journal connection</title><link rel="stylesheet" href="options.css"></head>
+<body><main><h1>Jimmy activity journal</h1><p>Records the active page title and URL while this browser has focus. No page text, chats, forms, keystrokes, or screenshots are read. Query strings and fragments are omitted. Private browsing is excluded.</p>
+<form id="settings"><label>Jimmy username<input id="username" autocomplete="username" required></label><label>Jimmy password<input id="password" type="password" autocomplete="current-password" required></label><label><input id="enabled" type="checkbox"> Enable browser journaling</label><button>Save connection</button></form>
+<p>Credentials stay in this browser’s local extension storage. Jimmy must run at http://127.0.0.1:3002, with activity recording and browser recording enabled in Settings → Activity journal.</p><p id="status" role="status"></p></main><script src="options.js"></script></body></html>

@@ -1,0 +1,156 @@
+[
+  {
+    "code": "a",
+    "language": "American English",
+    "preview": "Hello, I'm Jimmy. How can I help you today?",
+    "voices": [
+      {
+        "id": "af_heart",
+        "name": "Heart",
+        "gender": "Female"
+      },
+      {
+        "id": "af_alloy",
+        "name": "Alloy",
+        "gender": "Female"
+      },
+      {
+        "id": "af_aoede",
+        "name": "Aoede",
+        "gender": "Female"
+      },
+      {
+        "id": "af_bella",
+        "name": "Bella",
+        "gender": "Female"
+      },
+      {
+        "id": "af_jessica",
+        "name": "Jessica",
+        "gender": "Female"
+      },
+      {
+        "id": "af_kore",
+        "name": "Kore",
+        "gender": "Female"
+      },
+      {
+        "id": "af_nicole",
+        "name": "Nicole",
+        "gender": "Female"
+      },
+      {
+        "id": "af_nova",
+        "name": "Nova",
+        "gender": "Female"
+      },
+      {
+        "id": "af_river",
+        "name": "River",
+        "gender": "Female"
+      },
+      {
+        "id": "af_sarah",
+        "name": "Sarah",
+        "gender": "Female"
+      },
+      {
+        "id": "af_sky",
+        "name": "Sky",
+        "gender": "Female"
+      },
+      {
+        "id": "am_adam",
+        "name": "Adam",
+        "gender": "Male"
+      },
+      {
+        "id": "am_echo",
+        "name": "Echo",
+        "gender": "Male"
+      },
+      {
+        "id": "am_eric",
+        "name": "Eric",
+        "gender": "Male"
+      },
+      {
+        "id": "am_fenrir",
+        "name": "Fenrir",
+        "gender": "Male"
+      },
+      {
+        "id": "am_liam",
+        "name": "Liam",
+        "gender": "Male"
+      },
+      {
+        "id": "am_michael",
+        "name": "Michael",
+        "gender": "Male"
+      },
+      {
+        "id": "am_onyx",
+        "name": "Onyx",
+        "gender": "Male"
+      },
+      {
+        "id": "am_puck",
+        "name": "Puck",
+        "gender": "Male"
+      },
+      {
+        "id": "am_santa",
+        "name": "Santa",
+        "gender": "Male"
+      }
+    ]
+  },
+  {
+    "code": "b",
+    "language": "British English",
+    "preview": "Hello, I'm Jimmy. How can I help you today?",
+    "voices": [
+      {
+        "id": "bf_alice",
+        "name": "Alice",
+        "gender": "Female"
+      },
+      {
+        "id": "bf_emma",
+        "name": "Emma",
+        "gender": "Female"
+      },
+      {
+        "id": "bf_isabella",
+        "name": "Isabella",
+        "gender": "Female"
+      },
+      {
+        "id": "bf_lily",
+        "name": "Lily",
+        "gender": "Female"
+      },
+      {
+        "id": "bm_daniel",
+        "name": "Daniel",
+        "gender": "Male"
+      },
+      {
+        "id": "bm_fable",
+        "name": "Fable",
+        "gender": "Male"
+      },
+      {
+        "id": "bm_george",
+        "name": "George",
+        "gender": "Male"
+      },
+      {
+        "id": "bm_lewis",
+        "name": "Lewis",
+        "gender": "Male"
+      }
+    ]
+  }
+]

@@ -1,25 +1,45 @@
 {
-  "name": "johnny",
+  "name": "jimmy",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "test:setup": "node tests/setup.mjs",
     "dev": "next dev",
+    "dev:https": "next dev --experimental-https --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "start:lan": "next start --hostname 0.0.0.0",
+    "lint": "eslint",
+    "test": "node tests/brain-memory.mjs",
+    "voice:up": "docker compose --env-file .env.local -f voice-service/compose.yaml up --build -d",
+    "voice:down": "docker compose --env-file .env.local -f voice-service/compose.yaml down",
+    "voice:logs": "docker compose --env-file .env.local -f voice-service/compose.yaml logs -f voice",
+    "background:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/background.ps1 start",
+    "background:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/background.ps1 stop",
+    "background:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/background.ps1 status",
+    "desktop:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 start",
+    "desktop:startup:enable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 enable-startup",
+    "desktop:startup:disable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 disable-startup",
+    "desktop:startup:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 startup-status"
   },
   "dependencies": {
-    "next": "16.2.7",
+    "@radix-ui/react-icons": "^1.3.2",
+    "next": "16.3.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^44.3.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
