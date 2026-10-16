@@ -2,11 +2,31 @@
 
 import "./arc-reactor.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAssistantName } from "../lib/assistant-name";
 
 export default function ArcReactor({ speaking, busy, status }: { speaking: boolean; busy: boolean; status: string }) {
   const name = useAssistantName();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    const element = heading.current;
+    if (!element) return;
+    let disposed = false;
+    const fit = () => {
+      if (disposed) return;
+      element.style.fontSize = "";
+      const size = parseFloat(getComputedStyle(element).fontSize);
+      if (element.clientWidth && element.scrollWidth > element.clientWidth) {
+        element.style.fontSize = `${size * (element.clientWidth - 1) / element.scrollWidth}px`;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(element.parentElement!);
+    window.addEventListener("resize", fit);
+    void document.fonts.ready.then(fit);
+    return () => { disposed = true; observer.disconnect(); window.removeEventListener("resize", fit); };
+  }, [name, speaking, busy]);
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -33,7 +53,7 @@ export default function ArcReactor({ speaking, busy, status }: { speaking: boole
           <circle cx="300" cy="300" r="190" stroke="currentColor" opacity=".65" />
           <g className="reactor-inner-rotor">
             <circle cx="300" cy="300" r="182" stroke="currentColor" strokeWidth="4" strokeDasharray="500 45 250 348" />
-            <circle cx="300" cy="300" r="195" stroke="#e7c875" strokeWidth="3" strokeDasharray="110 1115" transform="rotate(190 300 300)" />
+            <circle cx="300" cy="300" r="195" stroke="var(--ui-line)" strokeWidth="3" strokeDasharray="110 1115" transform="rotate(190 300 300)" />
           </g>
           <circle cx="300" cy="300" r="170" stroke="currentColor" opacity=".18" />
           <path d="M280 22h40M280 578h40M22 280v40M578 280v40" stroke="currentColor" opacity=".55" />
@@ -41,7 +61,7 @@ export default function ArcReactor({ speaking, busy, status }: { speaking: boole
         </svg>
         <div className="reactor-core">
           <span className="reactor-eyebrow">{speaking ? "VOICE OUTPUT" : busy ? "PROCESSING" : "LOCAL TIME"}</span>
-          {speaking || busy ? <h1 className="reactor-name" title={name}>{name.toUpperCase()}</h1> : <div className="reactor-clock" aria-label={`Local time ${time}`}>{time}<span>{now?.getSeconds().toString().padStart(2, "0") ?? "--"}</span></div>}
+          {speaking || busy ? <h1 ref={heading} className="reactor-name" title={name}>{name.toUpperCase()}</h1> : <div className="reactor-clock" aria-label={`Local time ${time}`}>{time}<span>{now?.getSeconds().toString().padStart(2, "0") ?? "--"}</span></div>}
           <div className="reactor-divider" />
           <span className="reactor-status">{status}</span>
           <span className="reactor-date">{now?.toLocaleDateString([], { weekday: "short", month: "short", day: "2-digit" }) ?? "LOCAL SYSTEM"}</span>

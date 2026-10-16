@@ -16,7 +16,7 @@ function Chart({ block }: { block: Extract<CanvasBlock, { type: "chart" }> }) {
       {block.points.map((point, index) => <g key={index}>
         <title>{`${point.label}: ${point.value}${block.unit ? ` ${block.unit}` : ""}`}</title>
         <text x="165" y={index * 44 + 28} textAnchor="end">{point.label.length > 22 ? point.label.slice(0, 21) + "…" : point.label}</text>
-        <rect x={Math.min(x(0), x(point.value))} y={index * 44 + 10} width={Math.max(1, Math.abs(x(point.value) - x(0)))} height="27" rx="3" fill={point.value < 0 ? "#e6b37f" : "#76dce3"} />
+        <rect x={Math.min(x(0), x(point.value))} y={index * 44 + 10} width={Math.max(1, Math.abs(x(point.value) - x(0)))} height="27" rx="3" fill={point.value < 0 ? "#e6b37f" : "var(--ui-line)"} />
         <text x="800" y={index * 44 + 28}>{point.value.toLocaleString()}</text>
       </g>)}
       <text x="180" y={block.points.length * 44 + 35}>{minimum.toLocaleString()}</text><text x="780" textAnchor="end" y={block.points.length * 44 + 35}>{maximum.toLocaleString()} {block.unit}</text>
@@ -27,8 +27,8 @@ function Chart({ block }: { block: Extract<CanvasBlock, { type: "chart" }> }) {
   return <svg className="canvas-chart" viewBox="0 0 900 355" role="img" aria-label={block.title || "Line chart"}>
     <line x1="90" x2="830" y1={y(0)} y2={y(0)} className="canvas-axis" />
     <text x="75" y="50" textAnchor="end">{maximum.toLocaleString()}</text><text x="75" y="290" textAnchor="end">{minimum.toLocaleString()}</text>
-    <polyline fill="none" stroke="#76dce3" strokeWidth="3" points={block.points.map((point, index) => `${x(index)},${y(point.value)}`).join(" ")} />
-    {block.points.map((point, index) => <g key={index}><circle cx={x(index)} cy={y(point.value)} r="5" fill="#76dce3"><title>{`${point.label}: ${point.value} ${block.unit || ""}`}</title></circle>
+    <polyline fill="none" stroke="var(--ui-line)" strokeWidth="3" points={block.points.map((point, index) => `${x(index)},${y(point.value)}`).join(" ")} />
+    {block.points.map((point, index) => <g key={index}><circle cx={x(index)} cy={y(point.value)} r="5" fill="var(--ui-line)"><title>{`${point.label}: ${point.value} ${block.unit || ""}`}</title></circle>
       {index % Math.ceil(block.points.length / 8) === 0 || index === block.points.length - 1 ? <text x={x(index)} y="320" textAnchor="middle">{point.label.slice(0, 16)}</text> : null}</g>)}
   </svg>;
 }
@@ -37,15 +37,15 @@ function Diagram({ block }: { block: Extract<CanvasBlock, { type: "diagram" }> }
   const marker = useId().replace(/:/g, "");
   const layout = diagramLayout(block);
   return <><div className="canvas-diagram-scroll"><svg className="canvas-diagram" viewBox={`0 0 ${layout.width} ${layout.height}`} style={{ minWidth: layout.width }} role="img" aria-label={block.title || "Relationship diagram"}>
-    <defs><marker id={marker} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#76dce3" /></marker></defs>
+    <defs><marker id={marker} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="var(--ui-line)" /></marker></defs>
     {block.edges.map((edge, index) => {
       const from = layout.nodes.find(node => node.id === edge.from)!, to = layout.nodes.find(node => node.id === edge.to)!;
       const dx = to.x - from.x, dy = to.y - from.y;
       const inset = Math.min(90 / (Math.abs(dx) || 1), 34 / (Math.abs(dy) || 1));
-      return <g key={index}><path d={from.id === to.id ? `M${from.x - 40} ${from.y - 34} C${from.x - 100} ${from.y - 100} ${from.x + 100} ${from.y - 100} ${from.x + 40} ${from.y - 34}` : `M${from.x + dx * inset} ${from.y + dy * inset} L${to.x - dx * inset} ${to.y - dy * inset}`} stroke="#76dce3" strokeWidth="2" fill="none" markerEnd={`url(#${marker})`} />
+      return <g key={index}><path d={from.id === to.id ? `M${from.x - 40} ${from.y - 34} C${from.x - 100} ${from.y - 100} ${from.x + 100} ${from.y - 100} ${from.x + 40} ${from.y - 34}` : `M${from.x + dx * inset} ${from.y + dy * inset} L${to.x - dx * inset} ${to.y - dy * inset}`} stroke="var(--ui-line)" strokeWidth="2" fill="none" markerEnd={`url(#${marker})`} />
         {edge.label && <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 10} textAnchor="middle">{edge.label.slice(0, 32)}</text>}</g>;
     })}
-    {layout.nodes.map(node => <g key={node.id}><title>{node.label}</title><rect x={node.x - 90} y={node.y - 34} width="180" height="68" rx="8" fill="#11191c" stroke="#76dce380" />
+    {layout.nodes.map(node => <g key={node.id}><title>{node.label}</title><rect x={node.x - 90} y={node.y - 34} width="180" height="68" rx="8" fill="var(--ui-raised)" stroke="color-mix(in srgb, var(--ui-line) 50.2%, transparent)" />
       <text x={node.x} y={node.y - (node.label.length > 23 ? 6 : -5)} textAnchor="middle"><tspan x={node.x}>{node.label.slice(0, 23)}</tspan>{node.label.length > 23 && <tspan x={node.x} dy="21">{node.label.slice(23, 45)}{node.label.length > 45 ? "…" : ""}</tspan>}</text></g>)}
   </svg></div><details><summary>Read diagram relationships</summary><ul>{block.nodes.map(node => <li key={node.id}>{node.label}</li>)}</ul><ul>{block.edges.map((edge, index) => <li key={index}>{block.nodes.find(node => node.id === edge.from)!.label} → {block.nodes.find(node => node.id === edge.to)!.label}{edge.label ? ` (${edge.label})` : ""}</li>)}</ul></details></>;
 }

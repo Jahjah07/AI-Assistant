@@ -77,7 +77,7 @@ try {
   await page.waitForFunction(() => document.body.textContent.includes('Hello Sir.'));
   assert.equal(chats.length, 1, 'Push-to-talk works without wake word');
   assert.equal(chats[0].brain, 'auto');
-  await page.getByText('Last reply: Qwen', { exact: true }).waitFor();
+  await page.getByText('Last reply: Local Ollama', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Voice settings', exact: true }).click();
   await page.getByRole('button', { name: 'General', exact: true }).click();
   const personality = 'Call me Captain. Be calm, warm, and concise.';

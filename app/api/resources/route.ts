@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { protectApiRequest } from "../_security";
+import { chatModel } from "../model-settings/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ async function readBackendStatus() {
     silero: voice?.ok === true && voice.vad === "silero-onnx-cpu" ? "Online" : "Offline",
     moonshine: voice?.ok === true && voice.configured_asr === "moonshine" ? modelState(voice.asr_status?.state) : "Offline",
     ollama: Array.isArray(installed?.models) || Array.isArray(running?.models) ? "Online" : "Offline",
-    chat: models(process.env.OLLAMA_MODEL || "qwen3:4b-instruct"),
+    chat: models(await chatModel()),
     vision: models(process.env.OLLAMA_VISION_MODEL || "qwen3-vl:2b"),
     comfyui: images?.system && Array.isArray(images.devices) ? "Online" : "Offline",
   };

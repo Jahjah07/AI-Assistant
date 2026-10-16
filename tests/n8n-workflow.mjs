@@ -19,6 +19,8 @@ try {
   const load = source => import(pathToFileURL(path.join(temporary, `${source}.mjs`)));
   const { validateWorkflow, gmailReadExample } = await load('app/api/n8n-workflow/workflow');
   const { POST } = await load('app/api/n8n-workflow/route');
+  const models = await load('app/api/model-settings/settings');
+  await models.saveModelSettings({ model: 'friend:14b', keepLoaded: false });
   const { parseVoiceCommand } = await load('app/lib/voice-commands');
   assert.equal(parseVoiceCommand('Jimmy, create an n8n workflow that returns hello').kind, 'n8n-create');
   assert.equal(parseVoiceCommand('Can you build a workflow in n8n?').kind, 'n8n-create');
@@ -67,6 +69,7 @@ try {
       return new Response('# Webhook\nUse a connected webhook with configured authentication.');
     }
     const call = { url: String(url), body: JSON.parse(options.body), headers: options.headers }; calls.push(call);
+    if (String(url).includes('11434')) assert.equal(call.body.model, 'friend:14b', 'Workflow generation uses the selected local brain');
     return String(url).includes('11434') ? Response.json({ message: { content: JSON.stringify(draft) } }) : Response.json({ id: 'test-id', name: draft.name, active: false });
   };
   const response = await POST(request()); const body = await response.json();

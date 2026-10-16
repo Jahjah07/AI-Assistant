@@ -14,9 +14,9 @@ for (const key of ['AUTH_USERNAME', 'AUTH_PASSWORD', 'ALLOWED_HOSTS', 'ALLOWED_O
 export const origin = process.argv.includes('--desktop-test') ? 'http://127.0.0.1:3003' : 'http://127.0.0.1:3002';
 const exec = promisify(execFile);
 const composeArgs = ['compose', '--env-file', path.join(root, '.env.local'), '-f', path.join(root, 'voice-service/compose.yaml')];
-function keepLoaded() {
-  try { return JSON.parse(readFileSync(path.join(root, 'storage/model-settings.json'), 'utf8')).keepLoaded === true; }
-  catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+function modelSettings() {
+  try { return JSON.parse(readFileSync(path.join(root, 'storage/model-settings.json'), 'utf8')); }
+  catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
 }
 
 export class JimmyServices {
@@ -108,7 +108,7 @@ export class JimmyServices {
       await this.until(() => this.json('http://127.0.0.1:11434/api/version'), 'Ollama did not start. Install Ollama, then retry.', 60000);
     }
     this.report('Say “Jimmy” to wake me');
-    if (keepLoaded()) await this.wake();
+    if (modelSettings().keepLoaded === true) await this.wake();
   }
 
   wake() {
@@ -116,13 +116,14 @@ export class JimmyServices {
     if (this.warming) return this.warming;
     this.report('Waking up…');
     this.warming = (async () => {
+      const settings = modelSettings();
       await Promise.all([
         this.json('http://127.0.0.1:8766/warm', { method: 'POST', headers: {
           'X-Voice-Service-Secret': process.env.VOICE_SERVICE_SECRET,
         } }, 240000),
         this.json('http://127.0.0.1:11434/api/generate', { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen3:4b-instruct', keep_alive: keepLoaded() ? -1 : '30m', stream: false }),
+          body: JSON.stringify({ model: settings.model || process.env.OLLAMA_MODEL || 'qwen3:4b-instruct', keep_alive: settings.keepLoaded === true ? -1 : '30m', stream: false }),
         }, 240000),
       ]);
       this.awake = true;
@@ -139,7 +140,7 @@ export class JimmyServices {
     try {
       const response = await fetch('http://127.0.0.1:11434/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen3:4b-instruct', keep_alive: 0, stream: false }),
+        body: JSON.stringify({ model: modelSettings().model || process.env.OLLAMA_MODEL || 'qwen3:4b-instruct', keep_alive: 0, stream: false }),
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok && response.status !== 404) failures.push('Ollama model unload failed');

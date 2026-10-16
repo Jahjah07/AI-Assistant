@@ -34,10 +34,10 @@ let assistantName = 'Jimmy';
 function trusted(url) {
   try { return new URL(url).origin === origin; } catch { return false; }
 }
-function state() { return { expanded, muted, phase, error, awake: services?.awake || false }; }
+function state() { return { expanded, muted, phase: phase.replace(/\bJimmy\b/g, assistantName), error: error.replace(/\bJimmy\b/g, assistantName), awake: services?.awake || false }; }
 function broadcast() {
   if (win && !win.isDestroyed()) win.webContents.send('jimmy:state-changed', state());
-  tray?.setToolTip(`${assistantName} — ${muted ? 'Microphone muted' : phase}`.slice(0, 120));
+  tray?.setToolTip(`${assistantName} — ${muted ? 'Microphone muted' : state().phase}`.slice(0, 120));
   updateMenu();
 }
 function report(message) { phase = message; broadcast(); }
@@ -60,16 +60,21 @@ function resize(value) {
   broadcast();
 }
 
+function hideAssistant() {
+  canvasWindow?.hide();
+  win?.hide();
+}
+
 function updateMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: error || phase, enabled: false },
+    { label: state().error || state().phase, enabled: false },
     { type: 'separator' },
     { label: `Show floating ${assistantName}`, click: () => resize(false) },
     { label: 'Open chat / settings', click: () => resize(true) },
     { label: 'Open canvas', enabled: !closing && trusted(win?.webContents.getURL()), click: () => { void openCanvas().catch(fail); } },
     { label: 'Hide canvas to tray', enabled: Boolean(canvasWindow?.isVisible()), click: () => canvasWindow?.hide() },
-    { label: 'Hide to tray (keeps listening)', click: () => win?.hide() },
+    { label: 'Hide to tray (keeps listening)', click: hideAssistant },
     { label: 'Mute microphone', type: 'checkbox', checked: muted, click: item => { muted = item.checked; broadcast(); } },
     { label: 'Always on top', type: 'checkbox', checked: pinned, click: item => { pinned = item.checked; win?.setAlwaysOnTop(pinned); } },
     { label: 'Retry startup', enabled: Boolean(error) && !closing, click: () => { void retry(); } },
@@ -143,7 +148,7 @@ function registerIpc() {
   });
   handle('expand', value => { resize(value === true); return state(); });
   handle('mute', value => { muted = value === true; broadcast(); return state(); });
-  handle('hide', () => win.hide());
+  handle('hide', hideAssistant);
   handle('open-canvas', async session => {
     if (typeof session !== 'string' || !/^[a-f0-9-]{36}$/.test(session)) throw new Error('Invalid canvas session.');
     await openCanvas(session);
@@ -203,7 +208,7 @@ async function shutdown() {
   services?.abort?.abort();
   if (starting) await starting.catch(() => {});
   const failures = await services?.stop() || [];
-  if (failures.length) await dialog.showMessageBox({ type: 'warning', title: 'Jimmy shutdown', message: failures.join('\n') });
+  if (failures.length) await dialog.showMessageBox({ type: 'warning', title: `${assistantName} shutdown`, message: failures.join('\n') });
   tray?.destroy();
   app.exit(0);
 }

@@ -6,9 +6,10 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const originalFetch = globalThis.fetch;
+const originalDirectory = process.cwd();
 const temporary = await mkdtemp(path.join(tmpdir(), 'jimmy-resources-'));
 try {
-  for (const source of ['app/api/_security', 'app/api/resources/route']) {
+  for (const source of ['app/api/_security', 'app/api/resources/route', 'app/api/model-settings/settings']) {
     const code = await readFile(`${source}.ts`, 'utf8');
     const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true });
@@ -33,6 +34,7 @@ try {
     if (target.pathname === '/system_stats') return Response.json({ system: {}, devices: [] });
     return Response.json(target.port === '8766' ? { ok: true, configured_tts: 'kokoro', status: { state: ttsState } } : { ok: true, vad: 'silero-onnx-cpu', configured_asr: 'moonshine', asr_status: { state: ttsState } });
   };
+  process.chdir(temporary);
   const { GET } = await import(pathToFileURL(path.join(temporary, 'app/api/resources/route.mjs')));
   const request = auth => new Request('http://localhost/api/resources', { headers: { host: 'localhost', ...(auth ? { authorization: `Basic ${Buffer.from('test:test-password').toString('base64')}` } : {}) } });
   assert.equal((await GET(request(false))).status, 401);
@@ -74,4 +76,4 @@ try {
   });
   assert.ok(urls.every(url => ['/health', '/api/tags', '/api/ps', '/system_stats'].includes(new URL(url).pathname)), 'Status checks must never warm models or capture audio');
   console.log('Passed: authenticated telemetry, polling cache, speech states, loaded/standby/missing models, unavailable services, read-only checks.');
-} finally { globalThis.fetch = originalFetch; await rm(temporary, { recursive: true, force: true }); }
+} finally { globalThis.fetch = originalFetch; process.chdir(originalDirectory); await rm(temporary, { recursive: true, force: true }); }

@@ -128,7 +128,7 @@ const NON_COMMAND_TRANSCRIPT_PATTERNS = [
   /\blaughter\b/i,
 ];
 const COMMAND_VERB_PATTERN =
-  /\b(?:remember|memorize|forget|memory|memories|open|launch|start|run|play|search|lookup|look\s+up|google|internet|web|latest|current|today|news|stop|close|turn\s+off|hide|show|display|bring\s+back|clear|remove|pause|resume|continue|unpause|next|skip|time\s+for\s+work|what|when|where|why|how|tell|say|summarize|write|read|help|explain|create|generate|draw|make)\b/i;
+  /\b(?:remember|memorize|forget|memory|memories|open|launch|start|run|play|search|lookup|look\s+up|google|internet|web|latest|current|today|news|stop|close|turn\s+off|hide|minimi[sz]e|show|display|bring\s+back|clear|remove|pause|resume|continue|unpause|next|skip|time\s+for\s+work|what|when|where|why|how|tell|say|summarize|write|read|help|explain|create|generate|draw|make)\b/i;
 
 function toPcm16Khz(input: Float32Array, inputSampleRate: number) {
   const ratio = inputSampleRate / 16_000;
@@ -1408,7 +1408,7 @@ export default function AudioReactiveOrb() {
         setMessages(current => [...current, { role: "assistant", content: reply, workflowUrl: data.url }]);
         setIsChatVisible(true);
         setLastBrain("qwen");
-        setRoutingNote("Created an inactive n8n workflow using local Qwen.");
+        setRoutingNote("Created an inactive n8n workflow using the selected local model.");
         lastReplyRef.current = reply;
         speak(reply);
         armFollowUpCommands();
@@ -1422,6 +1422,18 @@ export default function AudioReactiveOrb() {
         }
       }
       return;
+    }
+    if (command.kind === "desktop-hide") {
+      stopSpeech();
+      let reply = "Hiding to the tray is available in the desktop app.";
+      try {
+        if (window.jimmyDesktop) {
+          await window.jimmyDesktop.hide();
+          reply = `Hidden to the tray. Say “${savedAssistantName()}, open dashboard” or use the tray icon to bring me back.`;
+        }
+      } catch { reply = "I couldn't hide the window. Please try again."; }
+      setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: reply }]);
+      speak(reply); armFollowUpCommands(); return;
     }
     if (command.kind === "desktop-view") {
       stopSpeech();
@@ -2089,9 +2101,9 @@ export default function AudioReactiveOrb() {
   const askJimmy = async (content: string) => {
     content = assistantCommand(content);
     if (!content) return;
-    const canvasCommand = parseVoiceCommand(content);
-    if (canvasCommand?.kind === "canvas") {
-      await runLocalCommand(content, canvasCommand); return;
+    const windowCommand = parseVoiceCommand(content);
+    if (windowCommand?.kind === "canvas" || windowCommand?.kind === "desktop-view" || windowCommand?.kind === "desktop-hide") {
+      await runLocalCommand(content, windowCommand); return;
     }
     if (pendingTodoDayRef.current && !(window.jimmyDesktop && isJimmyShutdown(content)) && !routeLocalCommand(content)) {
       if (/^(?:(?:hey\s+)?jimmy[\s,.:!-]*)?(?:cancel|never\s?mind|stop adding tasks)[.!?]*$/i.test(content.trim())) {
@@ -2655,18 +2667,18 @@ export default function AudioReactiveOrb() {
         <button type="button" aria-pressed={continuousMic} onClick={() => void toggleContinuousMic()}>
           {continuousMic ? "Wake-word mic on" : "Use mic / wake word"}
         </button>
-        <label>Brain <select aria-label="Brain" aria-describedby={brain !== "qwen" ? "brain-privacy" : undefined} title={brain === "qwen" ? "Local Qwen" : "Codex replies use your ChatGPT account. Auto may send coding and complex requests to OpenAI."} value={brain} disabled={chatStatus === "thinking"} onChange={event => {
+        <label>Brain <select aria-label="Brain" aria-describedby={brain !== "qwen" ? "brain-privacy" : undefined} title={brain === "qwen" ? "Local Ollama" : "Codex replies use your ChatGPT account. Auto may send coding and complex requests to OpenAI."} value={brain} disabled={chatStatus === "thinking"} onChange={event => {
           brainRef.current = event.target.value; setBrain(event.target.value);
-        }}><option value="auto">Auto · choose for the task</option><option value="qwen">Qwen · local</option><option value="codex">Codex · ChatGPT account</option></select></label>
+        }}><option value="auto">Auto · choose for the task</option><option value="qwen">Ollama · local</option><option value="codex">Codex · ChatGPT account</option></select></label>
         {brain !== "qwen" ? <><CodexAccount /><small id="brain-privacy" className="sr-only">{brain === "auto" ? "Auto may send coding or complex requests and saved memories to OpenAI when connected." : "Chat and saved memories are sent to OpenAI using your ChatGPT plan."}</small></> : null}
-        {lastBrain ? <small role="status" title={routingNote}>Last reply: {lastBrain === "codex" ? "Codex" : lastBrain === "screen" ? "Local vision" : "Qwen"}</small> : null}
+        {lastBrain ? <small role="status" title={routingNote}>Last reply: {lastBrain === "codex" ? "Codex" : lastBrain === "screen" ? "Local vision" : "Local Ollama"}</small> : null}
       </div>
       </div>
       {desktop ? <div className="desktop-toolbar">
         <span className="desktop-drag" title={`Drag to move ${assistantName}`}>⠿</span>
-        <button type="button" onClick={() => void window.jimmyDesktop?.expand(!desktop.expanded)} aria-label={desktop.expanded ? `Collapse ${assistantName}` : `Open ${assistantName} chat`}>{desktop.expanded ? "−" : "+"}</button>
+        <button type="button" onClick={() => void window.jimmyDesktop?.expand(!desktop.expanded)} title={desktop.expanded ? "Circle mode" : "Open dashboard"} aria-label={desktop.expanded ? `Collapse ${assistantName}` : `Open ${assistantName} chat`}>{desktop.expanded ? "○" : "+"}</button>
         <button type="button" onClick={() => void window.jimmyDesktop?.mute(!desktop.muted)} aria-label={desktop.muted ? "Unmute microphone" : "Mute microphone"}>{desktop.muted ? "Mic off" : "Mic on"}</button>
-        <button type="button" onClick={() => void window.jimmyDesktop?.hide()} aria-label={`Hide ${assistantName} to tray`}>×</button>
+        <button type="button" onClick={() => void window.jimmyDesktop?.hide()} title="Minimize to tray · keeps listening" aria-label={`Minimize ${assistantName} to tray`}>−</button>
       </div> : null}
       <button type="button" disabled={chatStatus === "thinking"} title="Analyse one screen snapshot locally"
         onClick={() => { void inspectScreen(pendingScreenQuestion || "Describe what I am doing on this screen.", window.jimmyDesktop ? undefined : captureBrowserScreen()); }}

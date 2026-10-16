@@ -2,7 +2,7 @@ import { protectApiRequest } from "../_security";
 import { acquireConcurrency, concurrencyLimitResponse, fetchWithTimeout, readJsonObject, readResponseText, UpstreamTimeoutError } from "../_limits";
 import { gmailReadExample, validateWorkflow, workflowSchema } from "./workflow";
 import { workflowReferences } from "../knowledge/store";
-import { keepModelsLoaded } from "../model-settings/settings";
+import { readModelSettings } from "../model-settings/settings";
 import { documentationForTask } from "../knowledge/research";
 
 export const runtime = "nodejs";
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   if (!release) return concurrencyLimitResponse();
   let saving = false;
   try {
-    const model = process.env.OLLAMA_MODEL || "qwen3:4b-instruct";
+    const { model, keepLoaded } = await readModelSettings();
     const references = await workflowReferences(prompt, request.signal);
     const externalDocs = /\b(?:api|sdk|http)\b/i.test(prompt) ? await documentationForTask([{ role: "user", content: prompt }], request.signal) : "";
     // A webhook → Gmail → field mapping needs at least two connections.
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       const generated = await fetchWithTimeout("http://127.0.0.1:11434/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model, stream: false, ...(model.startsWith("qwen3:") ? { think: false } : {}),
-          keep_alive: await keepModelsLoaded() ? -1 : "5m", format: schema, options: { temperature: 0, num_ctx: 6144, num_predict: 3000 },
+          keep_alive: keepLoaded ? -1 : "5m", format: schema, options: { temperature: 0, num_ctx: 6144, num_predict: 3000 },
           messages: [
             { role: "system", content: `Generate an n8n 2.x workflow draft as JSON with name, nodes, connections. Use at most 20 real n8n-nodes-base nodes, and their actual parameter schemas. Never include credentials, API keys, activation flags, or invented credential IDs. Put instructions for missing credentials or user-specific values in node notes. Prefer a small complete workflow. For a simple test use manualTrigger v1 then set v3.4 with assignments.assignments [{name:"message",value:"Hello from Jimmy",type:"string"}]. Positions are [x,y], spaced 240 apart. Connections must be an array of edges using zero-based indices into the nodes array. For example [{"from":0,"to":1,"output":0,"input":0}] connects the first node to the second. Use output 0 normally; IF false branches use output 1. Common nodes: manualTrigger v1 parameters {}, set v3.4 assignments, httpRequest v4.2 method/url/options, scheduleTrigger v1.2 rule.interval, gmail v2.1 resource/operation. Example of a complete simple workflow: {"name":"Jimmy test","nodes":[{"name":"Start","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[0,0],"parameters":{}},{"name":"Hello","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[240,0],"parameters":{"assignments":{"assignments":[{"name":"message","value":"Hello from Jimmy","type":"string"}]},"options":{}}}],"connections":[{"from":0,"to":1,"output":0,"input":0}]}. For Gmail retrieval, preserve the approved read/unread scope. When all matching messages are requested, use returnAll: true for Gmail getAll or implement pagination through every page; never add an unrequested total result cap. A page size is allowed only when subsequent pages are retrieved too. Adapt the nodes and parameters to the requested task. Do not use placeholder nodes that claim a task is implemented. Return only valid JSON.` },
             { role: "system", content: `${references}\nUse native Gmail for message retrieval. Gmail v2.1 example parameters: {"resource":"message","operation":"getAll","returnAll":true,"simple":true,"filters":{"readStatus":"both"}}. Use readStatus unread or read only when the approved plan requests it. Use webhook v2 with path, httpMethod, authentication and responseMode, connected to actions and respondToWebhook when needed. Credentials remain for the user to connect. Never substitute disconnected placeholder nodes.` },

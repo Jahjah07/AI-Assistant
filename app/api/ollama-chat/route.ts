@@ -11,7 +11,7 @@ import { codexChat, CodexAuthenticationError } from "../codex/client";
 import { DEFAULT_ASSISTANT_NAME, DEFAULT_PERSONALITY, selectAutoBrain, validAssistantName } from "../../lib/assistant";
 import { selectRelevantMemories } from "../../lib/memory-retrieval";
 import { journalContext } from "../activity/store";
-import { keepModelsLoaded } from "../model-settings/settings";
+import { readModelSettings } from "../model-settings/settings";
 import { knowledgeContext } from "../knowledge/store";
 import { documentationForTask } from "../knowledge/research";
 import { toolForChat, ToolError } from "../n8n-tools/run";
@@ -36,7 +36,6 @@ type OllamaChatResponse = {
 };
 
 const OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen3:4b-instruct";
 const OLLAMA_KEEP_ALIVE = /^(-1|0|\d+[smh])$/.test(
   process.env.OLLAMA_KEEP_ALIVE || "",
 )
@@ -342,20 +341,21 @@ export async function POST(request: Request) {
       } catch (error) {
         if (brain !== "auto" || request.signal.aborted) throw error;
         selectedBrain = "qwen";
-        routingNote = error instanceof CodexAuthenticationError ? "Codex is not signed in; using Qwen." : "Codex is unavailable; using Qwen.";
+        routingNote = error instanceof CodexAuthenticationError ? "Codex is not signed in; using local Ollama." : "Codex is unavailable; using local Ollama.";
       }
     }
+    const modelSettings = await readModelSettings();
     const ollamaResponse = await fetchWithTimeout(OLLAMA_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        keep_alive: await keepModelsLoaded() ? -1 : OLLAMA_KEEP_ALIVE,
+        model: modelSettings.model,
+        keep_alive: modelSettings.keepLoaded ? -1 : OLLAMA_KEEP_ALIVE,
         stream: true,
         options: { num_ctx: 16384 },
-        ...(OLLAMA_MODEL.startsWith("qwen3:") ? { think: false } : {}),
+        ...(modelSettings.model.startsWith("qwen3:") ? { think: false } : {}),
         messages: [
           {
             role: "system",
@@ -389,7 +389,7 @@ export async function POST(request: Request) {
         "Cache-Control": "no-store",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Accel-Buffering": "no",
-        "X-Chat-Model": OLLAMA_MODEL,
+        "X-Chat-Model": modelSettings.model,
         "X-Chat-Brain": selectedBrain,
         "X-Jimmy-Tool-Result": liveTool ? "1" : "0",
         ...(liveTool?.gmailPage !== undefined ? { "X-Jimmy-Gmail-Page": encodeURIComponent(JSON.stringify(liveTool.gmailPage)) } : {}),

@@ -1,48 +1,48 @@
-.data-canvas { min-height: 100dvh; width: 100%; background: radial-gradient(ellipse at 50% 0, #2fa2be24, transparent 65%), linear-gradient(#7de8ff08 1px, transparent 1px), linear-gradient(90deg, #7de8ff08 1px, transparent 1px), #051218; background-size: auto, 42px 42px, 42px 42px, auto; color: #e3e9eb; font: 15px/1.6 system-ui, sans-serif; color-scheme: dark; padding: 32px clamp(20px, 5vw, 80px) 80px; }
-.canvas-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid #79e0e540; }
+.data-canvas { min-height: 100dvh; width: 100%; background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--ui-color) 14.12%, transparent), transparent 65%), linear-gradient(color-mix(in srgb, var(--ui-line) 3.14%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--ui-line) 3.14%, transparent) 1px, transparent 1px), var(--ui-surface); background-size: auto, 42px 42px, 42px 42px, auto; color: #e3e9eb; font: 15px/1.6 system-ui, sans-serif; color-scheme: dark; padding: 32px clamp(20px, 5vw, 80px) 80px; }
+.canvas-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid color-mix(in srgb, var(--ui-line) 25.1%, transparent); }
 .canvas-heading { min-width: 0; }
 .canvas-identity { display: flex; align-items: center; gap: 14px; }
-.canvas-reactor { display: block; flex-shrink: 0; width: 38px; height: 38px; border: 1px solid #79e0e580; border-radius: 50%; background: radial-gradient(circle, #e1ffff 0 13%, #79e0e5 14% 21%, transparent 22% 38%, #79e0e580 39% 43%, transparent 44% 57%, #79e0e540 58% 64%, transparent 65%); box-shadow: 0 0 22px #79e0e51c, inset 0 0 12px #79e0e51c; }
-.canvas-brand { min-width: 0; overflow-wrap: anywhere; color: #a4edf2; font: 10px/1.5 var(--font-orbitron), sans-serif; letter-spacing: .24em; }
+.canvas-reactor { display: block; flex-shrink: 0; width: 38px; height: 38px; border: 1px solid color-mix(in srgb, var(--ui-line) 50.2%, transparent); border-radius: 50%; background: radial-gradient(circle, var(--ui-text) 0 13%, var(--ui-line) 14% 21%, transparent 22% 38%, color-mix(in srgb, var(--ui-line) 50.2%, transparent) 39% 43%, transparent 44% 57%, color-mix(in srgb, var(--ui-line) 25.1%, transparent) 58% 64%, transparent 65%); box-shadow: 0 0 22px color-mix(in srgb, var(--ui-line) 10.98%, transparent), inset 0 0 12px color-mix(in srgb, var(--ui-line) 10.98%, transparent); }
+.canvas-brand { min-width: 0; overflow-wrap: anywhere; color: var(--ui-text); font: 10px/1.5 var(--font-orbitron), sans-serif; letter-spacing: .24em; }
 .canvas-header h1 { max-width: 900px; margin-top: 20px; font: 400 clamp(24px, 3.2vw, 38px)/1.3 var(--font-orbitron), sans-serif; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .canvas-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.canvas-actions button, .canvas-launch { border: 1px solid #76dce350; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #a4edf2; background: #0a2029; }
-.canvas-actions button:hover, .canvas-launch:hover { border-color: #79e0e5; background: #164654; }
-.data-canvas button:focus-visible, .data-canvas summary:focus-visible, .canvas-table-scroll:focus-visible, .canvas-launch:focus-visible { outline: 2px solid #79d8df; outline-offset: 4px; }
-.canvas-meta { display: flex; justify-content: space-between; gap: 20px; color: #a2b1b7; font-size: 12px; padding: 20px 0 8px; }
+.canvas-actions button, .canvas-launch { border: 1px solid color-mix(in srgb, var(--ui-line) 31.37%, transparent); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--ui-text); background: var(--ui-raised); }
+.canvas-actions button:hover, .canvas-launch:hover { border-color: var(--ui-line); background: var(--ui-border); }
+.data-canvas button:focus-visible, .data-canvas summary:focus-visible, .canvas-table-scroll:focus-visible, .canvas-launch:focus-visible { outline: 2px solid var(--ui-line); outline-offset: 4px; }
+.canvas-meta { display: flex; justify-content: space-between; gap: 20px; color: var(--ui-muted); font-size: 12px; padding: 20px 0 8px; }
 .canvas-meta span { overflow-wrap: anywhere; }
 .canvas-meta time { white-space: nowrap; }
 .canvas-note { border-left: 2px solid #d4b083; background: #18150f; padding: 12px 18px; margin-top: 18px; color: #e2c8a5; }
 .canvas-blocks { display: grid; gap: 24px; padding-top: 28px; }
-.canvas-block { min-width: 0; padding: clamp(16px, 2.5vw, 28px); border: 1px solid #79e0e530; border-radius: 18px; background: #07151ef2; box-shadow: 0 12px 36px #0003, inset 0 1px 0 #b6faff0d; }
+.canvas-block { min-width: 0; padding: clamp(16px, 2.5vw, 28px); border: 1px solid color-mix(in srgb, var(--ui-line) 18.82%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--ui-panel) 94.9%, transparent); box-shadow: 0 12px 36px #0003, inset 0 1px 0 color-mix(in srgb, var(--ui-text) 5.1%, transparent); }
 .canvas-block-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px; padding-bottom: 14px; }
-.canvas-block-heading > span { font: 9px/1.6 var(--font-orbitron), sans-serif; color: #79d8df; text-transform: uppercase; letter-spacing: .16em; }
+.canvas-block-heading > span { font: 9px/1.6 var(--font-orbitron), sans-serif; color: var(--ui-line); text-transform: uppercase; letter-spacing: .16em; }
 .canvas-block-heading h2 { font-size: 18px; font-weight: 500; }
-.canvas-table-scroll, .canvas-diagram-scroll { overflow: auto; max-width: 100%; border: 1px solid #283236; border-radius: 8px; }
+.canvas-table-scroll, .canvas-diagram-scroll { overflow: auto; max-width: 100%; border: 1px solid var(--ui-border); border-radius: 8px; }
 .data-canvas table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-.data-canvas th { position: sticky; top: 0; color: #a4edf2; background: #0a2029; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.data-canvas td, .data-canvas th { padding: 16px 20px; border-bottom: 1px solid #222d31; vertical-align: top; min-width: 110px; max-width: 520px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.data-canvas th { position: sticky; top: 0; color: var(--ui-text); background: var(--ui-raised); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.data-canvas td, .data-canvas th { padding: 16px 20px; border-bottom: 1px solid var(--ui-border); vertical-align: top; min-width: 110px; max-width: 520px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .data-canvas tr:last-child td { border-bottom: 0; }
-.data-canvas tbody tr:hover { background: #0b1215; }
-.canvas-list { list-style: decimal-leading-zero; padding-left: 48px; border-top: 1px solid #263135; }
-.canvas-list li { padding: 18px 12px; border-bottom: 1px solid #263135; white-space: pre-wrap; overflow-wrap: anywhere; }
-.canvas-list li::marker { color: #79d8df; font-size: 12px; }
+.data-canvas tbody tr:hover { background: var(--ui-panel); }
+.canvas-list { list-style: decimal-leading-zero; padding-left: 48px; border-top: 1px solid var(--ui-border); }
+.canvas-list li { padding: 18px 12px; border-bottom: 1px solid var(--ui-border); white-space: pre-wrap; overflow-wrap: anywhere; }
+.canvas-list li::marker { color: var(--ui-line); font-size: 12px; }
 .canvas-chart-scroll { max-width: 100%; overflow: auto; }
 .canvas-chart { display: block; width: 100%; min-width: 640px; min-height: 180px; }
-.canvas-chart text, .canvas-diagram text { fill: #c6d3d7; font: 14px system-ui, sans-serif; }
-.canvas-axis { stroke: #56666c; stroke-width: 1; }
+.canvas-chart text, .canvas-diagram text { fill: var(--ui-text); font: 14px system-ui, sans-serif; }
+.canvas-axis { stroke: var(--ui-muted); stroke-width: 1; }
 .canvas-diagram { display: block; width: 100%; }
-.data-canvas details { margin-top: 14px; font-size: 13px; color: #adbdc3; }
+.data-canvas details { margin-top: 14px; font-size: 13px; color: var(--ui-muted); }
 .data-canvas summary { cursor: pointer; width: fit-content; padding: 8px 0; }
 .data-canvas details ul { list-style: disc; padding-left: 24px; }
-.canvas-text { overflow: auto; max-height: 75dvh; padding: 20px; background: #0b1215; border: 1px solid #283236; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.7 ui-monospace, monospace; }
-.canvas-no-data { padding: 24px; color: #a2b1b7; }
-.canvas-empty { max-width: 800px; margin-top: clamp(32px, 7vh, 80px); padding: clamp(24px, 5vw, 56px); border: 1px solid #79e0e530; border-radius: 18px; background: #07151ef2; box-shadow: inset 0 1px 0 #b6faff0d; }
-.canvas-empty > span { color: #79d8df; font-size: 10px; letter-spacing: .2em; }
+.canvas-text { overflow: auto; max-height: 75dvh; padding: 20px; background: var(--ui-panel); border: 1px solid var(--ui-border); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.7 ui-monospace, monospace; }
+.canvas-no-data { padding: 24px; color: var(--ui-muted); }
+.canvas-empty { max-width: 800px; margin-top: clamp(32px, 7vh, 80px); padding: clamp(24px, 5vw, 56px); border: 1px solid color-mix(in srgb, var(--ui-line) 18.82%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--ui-panel) 94.9%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-text) 5.1%, transparent); }
+.canvas-empty > span { color: var(--ui-line); font-size: 10px; letter-spacing: .2em; }
 .canvas-empty h2 { font: 400 clamp(24px, 4vw, 42px)/1.3 var(--font-orbitron), sans-serif; letter-spacing: -.025em; margin: 20px 0; }
-.canvas-empty p { max-width: 580px; color: #a7b7bd; }
-.canvas-empty > div { margin-top: 40px; padding-left: 20px; border-left: 1px solid #4d6e75; display: grid; gap: 12px; }
-.canvas-overlay { position: fixed; inset: 0; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; z-index: 100; overflow: auto; background: #030506; }
+.canvas-empty p { max-width: 580px; color: var(--ui-muted); }
+.canvas-empty > div { margin-top: 40px; padding-left: 20px; border-left: 1px solid var(--ui-border); display: grid; gap: 12px; }
+.canvas-overlay { position: fixed; inset: 0; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; z-index: 100; overflow: auto; background: var(--ui-surface); }
 .canvas-overlay .data-canvas { min-height: 100%; }
 .canvas-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 html[data-jimmy-desktop="compact"] .jimmy-controls .canvas-launch { display: none; }

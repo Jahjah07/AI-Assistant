@@ -42,6 +42,8 @@ try {
   assert.equal(workflowFromChat([...conversation, { role: 'user', content: 'Cancel plan' }, { role: 'assistant', content: 'Plan cancelled. Nothing was created.' }]), null);
   process.env.JIMMY_AUTH_USERNAME = 'test'; process.env.JIMMY_AUTH_PASSWORD = 'test-password'; process.env.JIMMY_ALLOWED_HOSTS = 'localhost';
   const { POST } = await load('app/api/plan/route');
+  const models = await load('app/api/model-settings/settings');
+  await models.saveModelSettings({ model: 'friend:14b', keepLoaded: false });
   const request = (body, auth = true) => new Request('http://localhost/api/plan', { method: 'POST', headers: { host: 'localhost', 'content-type': 'application/json', ...(auth ? { authorization: `Basic ${Buffer.from('test:test-password').toString('base64')}` } : {}) }, body: JSON.stringify(body) });
   const body = { workflow: true, messages: [{ role: 'user', content: 'Create a Gmail workflow' }] };
   const knowledge = await load('app/api/knowledge/store');
@@ -52,6 +54,7 @@ try {
   globalThis.fetch = async (url, options) => {
     assert.equal(String(url), 'http://127.0.0.1:11434/api/chat', 'Planning must never call n8n');
     upstream = JSON.parse(options.body);
+    assert.equal(upstream.model, 'friend:14b', 'Planning uses the selected local brain');
     return Response.json({ message: { content: JSON.stringify({ question: 'Unread or all messages?', summary: '' }) } });
   };
   const response = await POST(request(body)); assert.equal(response.status, 200);

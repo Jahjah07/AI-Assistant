@@ -42,6 +42,13 @@ services. Open the gear → **General → Assistant name** to rename it and set 
 personality. Enable **Use mic / wake word** or hold **Hold to talk**. Allow
 Windows microphone access for desktop apps if needed.
 
+For a different local brain, install a model with `ollama pull MODEL_NAME`, then
+open **Settings → General → Local brain model · Ollama → Refresh models**.
+Select it and click **Save chat model**. The choice persists on your PC and
+applies to local chat, planning, workflow generation and desktop preloading.
+Use **Ollama · local** in the main Brain menu to force it. Larger models need
+more RAM/VRAM; the picker shows disk size, not runtime memory requirements.
+
 Desktop login is automatic. If you use a browser, its login credentials are
 `JIMMY_AUTH_USERNAME` and `JIMMY_AUTH_PASSWORD` in your own `.env.local`; setup
 does not print them. The files and credentials stay on your PC.

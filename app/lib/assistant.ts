@@ -16,14 +16,14 @@ export function savedAssistantName() {
 
 export function assistantWakePattern(name = savedAssistantName()) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![\\p{L}\\p{N}_])(?:hey\\s+)?(?:${escaped}|jimmy)(?![\\p{L}\\p{N}_])[\\s,.:;!?-]*`, "iu");
+  return new RegExp(`(?<![\\p{L}\\p{N}_])(?:hey\\s+)?${escaped}(?![\\p{L}\\p{N}_])[\\s,.:;!?-]*`, "iu");
 }
 
 export function assistantCommand(input: string, name = savedAssistantName()) {
   const wake = assistantWakePattern(name).exec(input.trim());
   let command = wake?.index === 0 ? input.trim().slice(wake[0].length).trim() : input.trim();
   const ending = assistantWakePattern(name).exec(command);
-  if (ending && /^(?:shut\s*down|expand|collapse)\s+$/i.test(command.slice(0, ending.index)) && ending.index + ending[0].length === command.length) {
+  if (ending && /^(?:shut\s*down|expand|collapse|minimi[sz]e|hide)\s+$/i.test(command.slice(0, ending.index)) && ending.index + ending[0].length === command.length) {
     command = command.slice(0, ending.index) + "Jimmy";
   }
   return command;

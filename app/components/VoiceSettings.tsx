@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { GearIcon } from "@radix-ui/react-icons";
+import { AppearanceSettings } from "./Appearance";
+import { SettingsFontSettings } from "./SettingsFont";
 import AudioDeviceSettings from "./AudioDeviceSettings";
 import ActivityJournal from "./ActivityJournal";
 import ModelSettings from "./ModelSettings";
@@ -9,7 +12,7 @@ import N8nTools from "./N8nTools";
 import TodoSettings from "./TodoSettings";
 import { routeAudio, savedVoiceVolume } from "../lib/audio-devices";
 import { kokoroLanguages, kokoroVoiceIds, KOKORO_VOICE_STORAGE_KEY, savedKokoroVoice, savedSpeechSpeed } from "../lib/kokoro";
-import { DEFAULT_PERSONALITY, PERSONALITY_STORAGE_KEY, savedPersonality } from "../lib/assistant";
+import { DEFAULT_PERSONALITY, PERSONALITY_STORAGE_KEY, savedAssistantName, savedPersonality } from "../lib/assistant";
 import { saveAssistantName, useAssistantName } from "../lib/assistant-name";
 
 export default function VoiceSettings({ busy, onOpenChange, chatVisible, onChatVisibleChange, onInputChange, onOutputChange, onVolumeChange }: {
@@ -92,7 +95,7 @@ export default function VoiceSettings({ busy, onOpenChange, chatVisible, onChatV
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: group.preview, voice: selected }),
+        body: JSON.stringify({ text: group.preview.replaceAll("{name}", savedAssistantName()), voice: selected }),
         signal: request.signal,
       });
       if (!response.ok) {
@@ -143,14 +146,11 @@ export default function VoiceSettings({ busy, onOpenChange, chatVisible, onChatV
     <button type="button" onClick={() => void open()} title="Voice settings" aria-label="Voice settings"
       aria-haspopup="dialog"
       className="absolute top-5 right-4 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 text-cyan-100 shadow-lg backdrop-blur-md transition hover:bg-cyan-100/15 focus-visible:outline-2 focus-visible:outline-cyan-200">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-        <path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
+      <GearIcon width="22" height="22" aria-hidden="true" />
     </button>
     <dialog ref={dialog} onClose={closed} aria-labelledby="voice-settings-title"
       onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }}
-      className="fixed inset-0 m-auto max-h-[85dvh] w-[min(760px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-cyan-200/20 bg-zinc-950 p-5 text-white shadow-2xl backdrop:bg-black/65 backdrop:backdrop-blur-sm">
+      className="settings-dialog fixed inset-0 m-auto max-h-[85dvh] w-[min(760px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-cyan-200/20 bg-zinc-950 p-5 text-white shadow-2xl backdrop:bg-black/65 backdrop:backdrop-blur-sm">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="min-w-0"><h2 id="voice-settings-title" className="text-lg font-medium">{assistantName}’s settings</h2>
           <p className="mt-1 text-sm text-white/55">Voice, audio devices, and preferences</p></div>
@@ -170,11 +170,13 @@ export default function VoiceSettings({ busy, onOpenChange, chatVisible, onChatV
       {section === "activity" && <ActivityJournal />}
       {section === "devices" && <AudioDeviceSettings onInputChange={onInputChange} onOutputChange={onOutputChange} onVolumeChange={onVolumeChange} />}
       {section === "general" && <>
+      <AppearanceSettings />
+      <SettingsFontSettings />
       <div className="mb-5 space-y-2">
         <label htmlFor="assistant-name" className="text-sm font-medium">Assistant name</label>
         <input id="assistant-name" value={nameDraft} maxLength={24} onChange={event => setNameDraft(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-zinc-900 p-3 text-sm focus:outline-cyan-200" />
-        <p className="text-xs text-white/55">Saved on this device. Updates the interface and wake name immediately. “Jimmy” still works as a wake name.</p>
+        <p className="text-xs text-white/55">Saved on this device. Updates the interface, voice previews and wake name immediately. Say the saved name to wake your assistant.</p>
         <button type="button" className={buttonStyle} onClick={() => {
           try { const name = saveAssistantName(nameDraft); setNameDraft(name); setStatus(`Assistant renamed to ${name}. Say “${name}, open canvas” to try it.`); }
           catch (error) { setStatus(error instanceof Error ? error.message : "Could not save the name. Allow site storage and try again."); }
@@ -186,7 +188,7 @@ export default function VoiceSettings({ busy, onOpenChange, chatVisible, onChatV
         <textarea id="jimmy-personality" value={personality} maxLength={1200} rows={3}
           onChange={event => setPersonality(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-zinc-900 p-3 text-sm focus:outline-cyan-200" />
-        <p className="text-xs text-white/55">Tell {assistantName} how to address you, how much detail to give, and what tone to use. Applies to Qwen and Codex chat replies.</p>
+        <p className="text-xs text-white/55">Tell {assistantName} how to address you, how much detail to give, and what tone to use. Applies to local Ollama and Codex chat replies.</p>
         <button type="button" className={buttonStyle} onClick={() => {
           try {
             localStorage.setItem(PERSONALITY_STORAGE_KEY, personality.trim() || DEFAULT_PERSONALITY);

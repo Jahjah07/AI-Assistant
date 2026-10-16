@@ -2,7 +2,7 @@
   {
     "code": "a",
     "language": "American English",
-    "preview": "Hello, I'm Jimmy. How can I help you today?",
+    "preview": "Hello, I'm {name}. How can I help you today?",
     "voices": [
       {
         "id": "af_heart",
@@ -109,7 +109,7 @@
   {
     "code": "b",
     "language": "British English",
-    "preview": "Hello, I'm Jimmy. How can I help you today?",
+    "preview": "Hello, I'm {name}. How can I help you today?",
     "voices": [
       {
         "id": "bf_alice",

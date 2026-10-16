@@ -18,6 +18,38 @@ See **[SETUP.md](SETUP.md)** for clone instructions, optional integrations,
 updates, troubleshooting and publishing to GitHub. Each friend gets their own
 assistant and can rename it in **Settings → General**.
 
+Change the UI accent in **Settings → General → UI color**. The picker updates
+the reactor, controls, panels and canvas immediately and saves the color for
+that browser or desktop profile. **Restore cyan** returns to the original color.
+
+Settings uses a readable system font by default. Under **General → Settings font**,
+choose System default, Arial, Verdana, Monospace or Orbitron. You can also upload
+a WOFF, WOFF2, TTF or OTF file up to 1 MiB. Font choices and uploaded files stay
+in your current browser or desktop profile, survive restarts, and apply across
+the settings sections. **Remove uploaded font** removes the local copy. Other
+parts of the interface keep their existing fonts.
+
+Say **Open dashboard** or **Show dashboard** to open the full interface.
+**Circle mode** returns to the floating reactor. **Minimize** hides the assistant
+and its canvas to the Windows tray while voice listening continues if enabled;
+it does not switch to circle mode. The toolbar’s **−** button also minimizes,
+and **○** switches to circle mode. Say your assistant’s name followed by
+**open dashboard**, or use the tray icon/menu, to bring it back.
+
+Choose a local brain in **Settings → General → Local brain model · Ollama**.
+Select an installed text-generation model and click **Save chat model**. To add a
+model, run `ollama pull MODEL_NAME`, then click **Refresh models**. The selection
+is saved on that PC and takes effect for the next local chat, plan or generated
+workflow, without restarting. The main **Brain** menu’s **Ollama · local** choice
+uses it; Auto uses it whenever a request is routed locally. Codex continues to
+use the connected ChatGPT account.
+
+The saved model overrides `OLLAMA_MODEL`, which remains the initial default.
+Switching unloads the previous chat model; **Keep voice and chat models loaded**
+also preloads the new selection. Model sizes in the picker are disk sizes, not
+RAM/VRAM requirements. Choose a model your hardware can run with the app’s chat
+context; embedding-only and cloud models cannot be saved as the local brain.
+
 ## Run
 
 For browser development after setup:
@@ -35,14 +67,14 @@ wait for **Listening**, then speak and release. No wake word is needed. The exis
 voice service finishes transcription after a short silence. **Use mic / wake word**
 enables continuous listening for “Jimmy”; press it again to disable capture.
 
-The **Brain** selector defaults to **Auto**. Everyday chat goes to local Qwen
+The **Brain** selector defaults to **Auto**. Everyday chat goes to the selected local Ollama model
 Instruct; coding requests and explicitly complex/in-depth tasks go to Codex when
 connected. Short follow-ups keep the preceding task's route. New topics are routed
 again. **Last reply** shows the actual brain and any fallback reason. You can force
-**Qwen · local** or **Codex · ChatGPT account** at any time.
+**Ollama · local** or **Codex · ChatGPT account** at any time.
 
 Auto uses simple text rules, so ambiguous requests can be misclassified. It falls
-back to Qwen if Codex is not signed in or cannot start the reply; failures after
+back to the selected local model if Codex is not signed in or cannot start the reply; failures after
 streaming begins are shown as errors. Local commands still run directly. To enable Codex:
 
 1. Install [Codex CLI](https://learn.chatgpt.com/docs/cli) if it is not already installed: `npm install -g @openai/codex`.
@@ -53,7 +85,7 @@ No OpenAI API key is required. Your account needs Codex access, and ChatGPT plan
 usage limits apply. Optional `CODEX_MODEL` selects a model; leave it unset to use
 Codex's default. For a nonstandard installation, set `CODEX_CLI_PATH` to the native
 executable or npm JS entrypoint. Chat and up to 30 selected saved memories are sent to
-OpenAI when Codex is selected manually or by Auto. Select Qwen to keep model chat local.
+OpenAI when Codex is selected manually or by Auto. Select Ollama to keep model chat local.
 
 Jimmy stores its separate Codex session under `.jimmy-runtime/codex` (gitignored).
 Signing out of Jimmy leaves your IDE/CLI login alone. Sign-in controls are available
@@ -71,7 +103,7 @@ click **Save personality**. For example:
 
 > Call me Jahred. Be calm, warm, and lightly witty. Use short conversational replies. Explain technical topics clearly and avoid calling me Sir.
 
-This is saved per browser and sent to both Qwen and Codex on the next chat request.
+This is saved per browser and sent to local Ollama or Codex on the next chat request.
 It changes tone, wording, and how Jimmy addresses you; the accent/voice chooser
 changes the actual speaking voice. Direct-command acknowledgements and voice previews
 keep their existing wording. Empty personality text restores the default friendly,
@@ -302,10 +334,11 @@ configure this with `OLLAMA_KEEP_ALIVE`.
 
 ### Chat model
 
-Install the default model with `ollama pull qwen3:4b-instruct` and set
-`OLLAMA_MODEL=qwen3:4b-instruct` in `.env.local`. Restart Jimmy after changing
-the model; rebuild with `npm run build` when running the desktop production app.
-The desktop wake-up and shutdown routines use the same model setting.
+Setup installs `qwen3:4b-instruct` by default. Choose another installed model in
+**Settings → General → Local brain model · Ollama** and click **Save chat model**;
+no restart is needed for this setting. `OLLAMA_MODEL` in `.env.local` supplies
+the default when no selection has been saved. The desktop wake-up and shutdown
+routines use the same saved model setting.
 
 Use the explicit `4b-instruct` tag for short spoken replies. The `qwen3:4b`
 tag currently selects the thinking variant, which can spend substantial time
@@ -405,7 +438,8 @@ window synchronization and chat/data separation checks using mocked APIs.
 Rename your assistant in **Settings → General → Assistant name → Save name**.
 The name updates the reactor, chat, canvas, Windows tray labels, AI identity,
 and spoken wake name immediately. For example, say “Nova, open canvas”.
-“Jimmy” remains a supported wake alias. Names are saved in local site storage,
+The saved name is the wake word and is also used in voice previews. Long names
+automatically scale to fit the reactor. Names are saved in local site storage,
 separately for each browser/desktop profile, so your friend can choose their own.
 Renaming keeps existing settings and data. Project folders, environment variables,
 API names, and Windows startup task names keep their existing identifiers.

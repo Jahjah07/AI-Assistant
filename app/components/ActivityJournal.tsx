@@ -53,7 +53,7 @@ export default function ActivityJournal() {
   }, [day]);
   return <section className="space-y-4 text-sm">
     <h3 className="font-medium text-cyan-100">Daily activity journal</h3>
-    <p className="text-xs leading-5 text-white/60">Records app names and window titles while Jimmy’s Windows desktop app runs. Project folders add file-change paths and Git status. No chat contents, keystrokes, screenshots, or file contents are collected.</p>
+    <p className="text-xs leading-5 text-white/60">Records app names and window titles while the assistant’s Windows desktop app runs. Project folders add file-change paths and Git status. No chat contents, keystrokes, screenshots, or file contents are collected.</p>
     <label className="flex items-center gap-2"><input type="checkbox" disabled={!loaded} checked={settings.enabled} onChange={event => setSettings({ ...settings, enabled: event.target.checked })} /> Enable activity recording</label>
     <label className="flex items-center gap-2"><input type="checkbox" disabled={!loaded} checked={settings.browser} onChange={event => setSettings({ ...settings, browser: event.target.checked })} /> Accept page titles and URLs from the browser extension</label>
     <p className="text-xs text-white/50">Browser URLs omit query strings and fragments. Window titles can still contain sensitive names. Private browser windows are skipped where recognizable.</p>

@@ -12,6 +12,7 @@ export type VoiceCommand =
   | { kind: "audio-settings"; page: "bluetooth" | "mixer" }
   | { kind: "screen-inspect" }
   | { kind: "desktop-view"; expanded: boolean }
+  | { kind: "desktop-hide" }
   | { kind: "n8n-create"; prompt: string }
   | { kind: "task-plan"; prompt: string }
   | { kind: "knowledge-learn"; url: string }
@@ -55,7 +56,8 @@ export function parseVoiceCommand(input: string): VoiceCommand | null {
     (/\bn8n\b/.test(text) || !/\b(?:github actions?|gitlab|power automate|zapier|make\.com)\b/.test(text))) {
     return { kind: "n8n-create", prompt: input.trim() };
   }
-  if (/^(?:(?:go |enter )?full\s*screen|(?:show|open) (?:your |the )?full (?:ui|dashboard)|expand(?: jimmy)?)$/.test(text)) return { kind: "desktop-view", expanded: true };
+  if (/^(?:minimi[sz]e(?: (?:yourself|jimmy|the assistant|the window|to (?:the )?tray))?|hide (?:yourself|jimmy|the assistant|to (?:the )?tray))$/.test(text)) return { kind: "desktop-hide" };
+  if (/^(?:(?:go |enter )?full\s*screen|(?:show|open) (?:your |the |my )?(?:full )?(?:ui|dashboard)|expand(?: jimmy)?)$/.test(text)) return { kind: "desktop-view", expanded: true };
   if (/^(?:(?:(?:go to|enter|switch to) )?(?:compact|circle)(?: mode)?|go small|(?:go back|return) to (?:the )?(?:small )?circle|collapse(?: jimmy)?)$/.test(text)) return { kind: "desktop-view", expanded: false };
   if (/^(?:(?:can|could) you (?:see|look at|check) my screen|(?:look at|check|describe|read) my screen|what(?:'s| is) on my screen|what am i (?:doing|working on) on (?:my |the )?screen)(?:\s*[,;:]\s*.+)?$/.test(text)) return { kind: "screen-inspect" };
   if (/^(?:repeat that|say that again|repeat your last (?:answer|reply))$/.test(text)) return { kind: "speech-repeat" };
@@ -69,4 +71,4 @@ export function parseVoiceCommand(input: string): VoiceCommand | null {
   return null;
 }
 
-export const COMMAND_HELP = "You can say: Time for work to open ChatGPT, Brave, and Visual Studio Code. Stop speaking. Repeat that. Speak slower, speak faster, or speak at normal speed. Change your voice to George. Can you see my screen? Fullscreen. Circle mode. Jimmy, go small. Create an n8n workflow that does a task. Open my local n8n. Plan a task. Cancel plan. Create me a to-do list for tomorrow. Add a task to my to-do list. What is in my to-do list? Do I have something to do today? Mark task 1 done. Set task 1 to 3 PM. Add finish my slides to my to-do list for tomorrow at 3 PM. Hide to-do list. Open Bluetooth settings. Use laptop speakers for your voice. Set your voice volume to 30 percent. Open Windows volume mixer. Open canvas. Hide canvas. I can also tell the time and date, check the weather, open apps, open ChatGPT or configured website shortcuts, search the web or find images in your browser, control YouTube, remember things, and generate images. In the floating desktop app, say Jimmy, shut down to close Jimmy and unload its models. Say Jimmy before a command, or give a follow-up after my reply.";
+export const COMMAND_HELP = "You can say: Time for work to open ChatGPT, Brave, and Visual Studio Code. Stop speaking. Repeat that. Speak slower, speak faster, or speak at normal speed. Change your voice to George. Can you see my screen? Open dashboard. Show dashboard. Fullscreen. Circle mode. Minimize to hide in the tray while listening continues. Jimmy, go small. Create an n8n workflow that does a task. Open my local n8n. Plan a task. Cancel plan. Create me a to-do list for tomorrow. Add a task to my to-do list. What is in my to-do list? Do I have something to do today? Mark task 1 done. Set task 1 to 3 PM. Add finish my slides to my to-do list for tomorrow at 3 PM. Hide to-do list. Open Bluetooth settings. Use laptop speakers for your voice. Set your voice volume to 30 percent. Open Windows volume mixer. Open canvas. Hide canvas. I can also tell the time and date, check the weather, open apps, open ChatGPT or configured website shortcuts, search the web or find images in your browser, control YouTube, remember things, and generate images. In the floating desktop app, say Jimmy, shut down to close Jimmy and unload its models. Say Jimmy before a command, or give a follow-up after my reply.";

@@ -1,16 +1,16 @@
 /* SVG reactor: no WebGL renderer or per-frame geometry updates. */
 .reactor-stage { width: min(420px, 68vw); position: relative; }
-.arc-reactor { color: #79e0e5; width: 100%; }
-.reactor-face { position: relative; aspect-ratio: 1; background: radial-gradient(circle, #08252990 0%, #08252940 40%, transparent 65%); }
-.reactor-dial { width: 100%; height: 100%; filter: drop-shadow(0 0 5px #59dde52b); }
+.arc-reactor { color: var(--ui-line); width: 100%; }
+.reactor-face { position: relative; aspect-ratio: 1; background: radial-gradient(circle, color-mix(in srgb, var(--ui-raised) 56.47%, transparent) 0%, color-mix(in srgb, var(--ui-raised) 25.1%, transparent) 40%, transparent 65%); }
+.reactor-dial { width: 100%; height: 100%; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--ui-line) 16.86%, transparent)); }
 .reactor-core { position: absolute; inset: 30% 20%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.reactor-eyebrow { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .3em; color: #72aeb5; }
-.reactor-clock { font: 400 clamp(32px, 4vw, 46px) var(--font-orbitron), sans-serif; letter-spacing: -.045em; font-variant-numeric: tabular-nums; color: #dbffff; line-height: 1.4; white-space: nowrap; }
-.reactor-clock span { font: 12px var(--font-orbitron), sans-serif; letter-spacing: .05em; margin-left: 8px; color: #7ab8bd; }
-.reactor-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(26px, 4vw, 46px); font-weight: 500; letter-spacing: .15em; margin: 12px 0; color: #e1ffff; text-shadow: 0 0 18px #75e8f266; }
+.reactor-eyebrow { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .3em; color: var(--ui-muted); }
+.reactor-clock { font: 400 clamp(32px, 4vw, 46px) var(--font-orbitron), sans-serif; letter-spacing: -.045em; font-variant-numeric: tabular-nums; color: var(--ui-text); line-height: 1.4; white-space: nowrap; }
+.reactor-clock span { font: 12px var(--font-orbitron), sans-serif; letter-spacing: .05em; margin-left: 8px; color: var(--ui-muted); }
+.reactor-name { width: 100%; min-width: 0; text-align: center; white-space: nowrap; font-size: clamp(26px, 4vw, 46px); font-weight: 500; letter-spacing: .15em; margin: 12px 0; color: var(--ui-text); text-shadow: 0 0 18px color-mix(in srgb, var(--ui-line) 40.0%, transparent); }
 .reactor-divider { height: 1px; width: 70%; background: linear-gradient(90deg, transparent, #7ae5ee90, transparent); margin-bottom: 12px; }
 .reactor-status { font-size: 10px; text-transform: uppercase; letter-spacing: .22em; text-align: center; }
-.reactor-date { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-top: 10px; color: #63929a; }
+.reactor-date { font: 9px var(--font-orbitron), sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-top: 10px; color: var(--ui-muted); }
 .reactor-rotor, .reactor-inner-rotor { transform-origin: 300px 300px; }
 .reactor-rotor { animation: reactor-turn 60s linear infinite; }
 .reactor-inner-rotor { animation: reactor-turn 90s linear infinite reverse; }
@@ -21,7 +21,7 @@
 .reactor-speaking .reactor-rotor { animation: reactor-voice-glow 1.8s ease-in-out infinite; }
 .reactor-speaking .reactor-inner-rotor circle { animation: reactor-segments 3s linear infinite; }
 .reactor-speaking .reactor-name { animation: reactor-name-glow 2.4s ease-in-out infinite; }
-.reactor-speaking .reactor-dial { filter: drop-shadow(0 0 7px #59dde566); }
+.reactor-speaking .reactor-dial { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ui-line) 40.0%, transparent)); }
 @keyframes reactor-turn { to { transform: rotate(360deg); } }
 @keyframes reactor-voice-glow {
   0%, 100% { opacity: .5; }
@@ -30,8 +30,8 @@
 }
 @keyframes reactor-segments { to { stroke-dashoffset: -240; } }
 @keyframes reactor-name-glow {
-  0%, 100% { text-shadow: 0 0 10px #75e8f244; }
-  50% { text-shadow: 0 0 22px #75e8f299; }
+  0%, 100% { text-shadow: 0 0 10px color-mix(in srgb, var(--ui-line) 26.67%, transparent); }
+  50% { text-shadow: 0 0 22px color-mix(in srgb, var(--ui-line) 60.0%, transparent); }
 }
 @media (max-width: 767px) {
   .reactor-clock { font-size: clamp(28px, 8vw, 36px); }

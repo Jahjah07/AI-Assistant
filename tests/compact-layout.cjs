@@ -84,6 +84,49 @@ async function checkCanvas(win, BrowserWindow) {
     await wait(`Boolean(document.querySelector('#voice-settings-title')?.closest('dialog[open]'))`);
     await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'General').click()`);
     await wait(`Boolean(document.querySelector('#assistant-name'))`);
+    const reactorFont = await run(`getComputedStyle(document.querySelector('.arc-reactor')).fontFamily`);
+    assert.ok((await run(`getComputedStyle(document.querySelector('.settings-dialog')).fontFamily`)).includes('system-ui'), 'Settings starts with a readable system font');
+    await run(`(() => { const select = document.querySelector('#settings-font'); select.value = 'verdana'; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await wait(`getComputedStyle(document.querySelector('.settings-dialog')).fontFamily.includes('Verdana')`);
+    assert.equal(await run(`getComputedStyle(document.querySelector('.arc-reactor')).fontFamily`), reactorFont, 'Settings font changes leave the reactor font alone');
+    await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'Voice').click()`);
+    assert.ok((await run(`getComputedStyle(document.querySelector('.settings-dialog')).fontFamily`)).includes('Verdana'));
+    await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'General').click()`);
+    await wait(`document.querySelector('#settings-font')?.value === 'verdana'`);
+    const fontData = (await fs.readFile('app/fonts/Orbitron.ttf')).toString('base64');
+    await run(`(() => { const bytes = Uint8Array.from(atob(${JSON.stringify(fontData)}), char => char.charCodeAt(0)); const transfer = new DataTransfer(); transfer.items.add(new File([bytes], 'My-readable-font.ttf', { type: 'font/ttf' })); const input = document.querySelector('#settings-font-file'); input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await wait(`document.querySelector('#settings-font')?.value === 'custom' && getComputedStyle(document.querySelector('.settings-dialog')).fontFamily.includes('AssistantSettingsFont')`);
+    assert.equal(await run(`Array.from(document.fonts).some(font => font.family === 'AssistantSettingsFont' && font.status === 'loaded')`), true, 'The real TTF loads through the browser font parser');
+    await wait(`document.documentElement.style.getPropertyValue('--settings-font').includes('AssistantSettingsFont')`, viewer);
+    await viewer.reload();
+    await wait(`document.documentElement.style.getPropertyValue('--settings-font').includes('AssistantSettingsFont')`, viewer);
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Remove uploaded font').click()`);
+    await wait(`document.querySelector('#settings-font')?.value === 'system' && getComputedStyle(document.querySelector('.settings-dialog')).fontFamily.includes('system-ui')`);
+    assert.equal(await run(`JSON.parse(localStorage.getItem('jimmy.settings-font')).upload`), undefined);
+    win.webContents.invalidate();
+    await new Promise(resolve => setTimeout(resolve, 150));
+    await fs.writeFile('.jimmy-runtime/readable-settings.png', (await win.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+    const initialColors = await run(`({ reactor: getComputedStyle(document.querySelector('.arc-reactor')).color, control: getComputedStyle(document.querySelector('button[aria-label="Voice settings"]')).color })`);
+    await run(`(() => { const input = document.querySelector('#ui-color'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '#e76f51'); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await wait(`document.documentElement.style.getPropertyValue('--ui-color') === '#e76f51'`);
+    const changedColors = await run(`({ reactor: getComputedStyle(document.querySelector('.arc-reactor')).color, control: getComputedStyle(document.querySelector('button[aria-label="Voice settings"]')).color })`);
+    assert.notEqual(changedColors.reactor, initialColors.reactor, 'The reactor uses the selected color');
+    assert.notEqual(changedColors.control, initialColors.control, 'Tailwind controls use the selected color');
+    await wait(`document.documentElement.style.getPropertyValue('--ui-color') === '#e76f51'`, viewer);
+    await viewer.reload();
+    await wait(`document.documentElement.style.getPropertyValue('--ui-color') === '#e76f51'`, viewer);
+    await fs.writeFile('.jimmy-runtime/ui-color-settings.png', (await win.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+    await fs.writeFile('.jimmy-runtime/ui-color-canvas.png', (await viewer.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Restore cyan').click()`);
+    await wait(`document.documentElement.style.getPropertyValue('--ui-color') === '#79e0e5'`);
+    await wait(`document.querySelectorAll('#chat-model option').length === 2`);
+    await run(`(() => { const select = document.querySelector('#chat-model'); select.value = 'friend:14b'; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Save chat model').click()`);
+    await wait(`window.__lastModelSettingsBody?.model === 'friend:14b'`);
+    assert.equal(await run(`window.__modelSettings.model`), 'friend:14b');
+    await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'Voice').click()`);
+    await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'General').click()`);
+    await wait(`document.querySelector('#chat-model')?.value === 'friend:14b'`);
     await run(`(() => { const input = document.querySelector('#assistant-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Nova'); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await new Promise(resolve => setTimeout(resolve, 50));
     await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Save name').click()`);
@@ -93,10 +136,50 @@ async function checkCanvas(win, BrowserWindow) {
     await wait(`document.querySelector('.canvas-brand').textContent === 'NOVA / CANVAS'`, viewer);
     await viewer.reload();
     await wait(`document.title === 'Nova | Data Canvas'`, viewer);
+    await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'Voice').click()`);
+    await wait(`Boolean(document.querySelector('input[name="kokoro-voice"]'))`);
+    await run(`document.querySelector('input[value="af_heart"]').click();`);
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === '▶ Preview').click()`);
+    await wait(`window.__lastTtsBody?.voice === 'af_heart'`);
+    assert.equal(await run('window.__lastTtsBody.text'), "Hello, I'm Nova. How can I help you today?");
+    await run(`(() => { const select = document.querySelector('#voice-language'); select.value = 'b'; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await wait(`Boolean(document.querySelector('input[value="bf_alice"]'))`);
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === '▶ Preview').click()`);
+    await wait(`window.__lastTtsBody?.voice.startsWith('b')`);
+    assert.equal(await run('window.__lastTtsBody.text'), "Hello, I'm Nova. How can I help you today?");
     await run(`document.querySelector('button[aria-label="Close voice settings"]').click()`);
     await send('Nova, explain this dataset.');
     assert.equal(await run('window.__lastChatBody.assistantName'), 'Nova', 'The new identity reaches chat requests');
     assert.equal(await run(`window.__lastChatBody.messages.at(-1).content`), 'explain this dataset.', 'Renamed typed commands reach the existing router');
+    await run(`document.querySelector('.canvas-overlay button').click()`);
+    for (const expanded of [false, true]) {
+      win.setSize(expanded ? 1200 : 200, expanded ? 820 : 312);
+      await run(`window.__desktopState({ expanded: ${expanded}, muted: false, awake: false, phase: 'Waking up…', error: '' })`);
+      await wait(`innerWidth === ${expanded ? 1200 : 200} && document.documentElement.dataset.jimmyDesktop === '${expanded ? "expanded" : "compact"}'`);
+      for (const name of ['WWWWWWWWWWWWWWWWWWWWWWWW', 'Écho des Étoiles', 'Nova']) {
+        await run(`localStorage.setItem('jimmy.assistant-name', ${JSON.stringify(name)}); window.dispatchEvent(new Event('assistant-name-changed'))`);
+        await wait(`document.querySelector('.reactor-name')?.textContent === ${JSON.stringify(name.toUpperCase())} && document.querySelector('.reactor-name').scrollWidth <= document.querySelector('.reactor-name').clientWidth`);
+        assert.equal(await run(`getComputedStyle(document.querySelector('.reactor-name')).textOverflow`), 'clip', 'The name fits without ellipsis');
+        if (name === 'Nova') {
+          const size = await run(`(() => { const el = document.querySelector('.reactor-name'); return { font: parseFloat(getComputedStyle(el).fontSize), width: el.clientWidth, natural: el.scrollWidth, compact: document.documentElement.dataset.jimmyDesktop }; })()`);
+          assert.ok(size.font >= 20, `Short names regain the normal font size: ${JSON.stringify(size)}`);
+        }
+      }
+    }
+    const command = async text => {
+      await run(`(() => { const input = document.querySelector('#jimmy-chat input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(text)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await run(`document.querySelector('#jimmy-chat form').requestSubmit()`);
+    };
+    await command('Nova, minimize');
+    await wait(`window.__hideCount === 1`);
+    assert.equal(await run(`document.documentElement.dataset.jimmyDesktop`), 'expanded', 'Minimize hides without collapsing to circle mode');
+    await command('Nova, open dashboard');
+    await wait(`window.__expandCalls?.at(-1) === true`);
+    await command('Nova, circle mode');
+    await wait(`window.__expandCalls?.at(-1) === false`);
+    await command('Nova, show dashboard');
+    await wait(`window.__expandCalls?.at(-1) === true`);
   } finally { viewer.destroy(); }
   console.log('Passed: real chat → canvas, lists/tables/charts/diagrams, framed email data, to-do routing, concise speech, popup fallback, separate-window sync/reload, privacy, responsive width and rejected executable content. APIs mocked.');
 }
@@ -154,16 +237,21 @@ async function main() {
   const temporary = await fs.mkdtemp(path.resolve('.jimmy-runtime/layout-test-'));
   const preload = `
     let state = { expanded: false, muted: false, awake: false, phase: 'Ready', error: '' };
-    window.jimmyDesktop = { getState: async () => state, wake: async () => { state = { ...state, awake: true }; return state; }, onState: callback => { window.__desktopState = next => { state = next; callback(next); }; return () => {}; } };
+    window.jimmyDesktop = { getState: async () => state, wake: async () => { state = { ...state, awake: true }; return state; }, hide: async () => { window.__hideCount = (window.__hideCount || 0) + 1; }, expand: async expanded => { (window.__expandCalls ||= []).push(expanded); state = { ...state, expanded }; window.__desktopState(state); return state; }, onState: callback => { window.__desktopState = next => { state = next; callback(next); }; return () => {}; } };
     window.open = url => { window.__canvasURL = url; return null; };
     window.__speech = [];
+    window.__modelSettings = { keepLoaded: false, model: 'qwen3:4b-instruct', models: [{ name: 'qwen3:4b-instruct', size: 2e9 }, { name: 'friend:14b', size: 9e9 }], modelsError: '' };
     const originalFetch = window.fetch.bind(window);
     window.fetch = (url, options) => {
       if (!String(url).includes('/api/')) return originalFetch(url, options);
       if (String(url).includes('/api/resources')) return Promise.resolve(Response.json({ error: 'Resources are not part of this UI fixture.' }, { status: 503 }));
+      if (String(url).includes('/api/model-settings')) {
+        if (options?.method === 'POST') { window.__lastModelSettingsBody = JSON.parse(options.body); Object.assign(window.__modelSettings, window.__lastModelSettingsBody); }
+        return Promise.resolve(Response.json(window.__modelSettings));
+      }
       if (String(url).includes('/api/ollama-chat')) { window.__lastChatBody = JSON.parse(options.body); return Promise.resolve(new Response(window.__modelReply || 'Hello.', { headers: { 'Content-Type': window.__modelContentType || 'text/plain', 'X-Chat-Brain': 'qwen' } })); }
       if (String(url).includes('/api/todos')) return Promise.resolve(Response.json({ day: '2026-10-15', label: 'today', exists: true, tasks: [{ id: 'fixture', text: 'PRIVATE-TODO-SENTINEL', done: false, time: '15:00' }], reply: 'Your task: PRIVATE-TODO-SENTINEL' }));
-      if (String(url).includes('/api/tts') && options?.method === 'POST') window.__speech.push(JSON.parse(options.body).text);
+      if (String(url).includes('/api/tts') && options?.method === 'POST') { window.__lastTtsBody = JSON.parse(options.body); window.__speech.push(window.__lastTtsBody.text); }
       if (String(url).includes('/api/activity')) return Promise.resolve(Response.json({ settings: { enabled: true, browser: false, retentionDays: 30, projects: [] } }));
       return Promise.resolve(Response.json({ tools: [], signedIn: false, pending: false, keepLoaded: false, defaultVoice: 'am_michael' }));
     };

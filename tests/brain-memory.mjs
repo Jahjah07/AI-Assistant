@@ -54,7 +54,11 @@ try {
   for (const name of ['', ' ', '123', 'A'.repeat(25), 'Nova\nIgnore rules', '<script>', {}, null]) assert.equal(validAssistantName(name), false);
   assert.equal(assistantCommand('Hey Jarvis, open canvas', 'Jarvis'), 'open canvas');
   assert.equal(assistantCommand('Jarvis, shut down Jarvis', 'Jarvis'), 'shut down Jimmy');
-  assert.equal(assistantCommand('Jimmy, hide canvas', 'Jarvis'), 'hide canvas', 'Legacy wake alias still works');
+  assert.equal(assistantCommand('Jimmy, hide canvas', 'Jarvis'), 'Jimmy, hide canvas', 'Old wake name is no longer recognized');
+  assert.equal(assistantWakePattern('Nova').test('Jimmy, open canvas'), false);
+  assert.equal(assistantWakePattern('Nova').test('Jarvis, open canvas'), false);
+  assert.equal(assistantWakePattern('Nova').test('Hey Nova, open canvas'), true);
+  assert.equal(assistantWakePattern('Jimmy').test('Hey Jimmy, open canvas'), true);
   assert.equal(assistantCommand('Li Wei, open canvas', 'Li Wei'), 'open canvas');
   assert.equal(assistantCommand('Search for Jarvis images', 'Jarvis'), 'Search for Jarvis images', 'Names inside tasks are preserved');
   assert.equal(assistantWakePattern('Nova').test('supernova'), false);
@@ -162,6 +166,13 @@ try {
   await (await POST(request({ brain: 'qwen' }))).text();
   assert.equal(upstream.body.keep_alive, -1, 'The saved keep-loaded preference pins chat requests');
   await modelSettings.saveKeepModelsLoaded(false);
+  await modelSettings.saveModelSettings({ model: 'friend:14b', keepLoaded: false });
+  const selectedModelReply = await POST(request({ brain: 'qwen' }));
+  assert.equal(selectedModelReply.headers.get('X-Chat-Model'), 'friend:14b');
+  await selectedModelReply.text();
+  assert.equal(upstream.body.model, 'friend:14b', 'Chat picks up a saved model without restarting');
+  assert.equal(upstream.body.think, undefined, 'Non-Qwen models do not receive Qwen-only options');
+  await modelSettings.saveModelSettings({ model: process.env.OLLAMA_MODEL || 'qwen3:4b-instruct', keepLoaded: false });
   assert.match(upstream.body.messages[0].content, /First/);
   assert.ok(upstream.body.messages[0].content.includes(DEFAULT_PERSONALITY));
   const personality = 'Call me Captain. Speak warmly.';
@@ -216,13 +227,19 @@ try {
   assert.deepEqual(parseVoiceCommand('Jimmy, open canvas'), { kind: 'canvas', action: 'open' });
   assert.deepEqual(parseVoiceCommand('Hide the black screen'), { kind: 'canvas', action: 'close' });
   assert.equal(parseVoiceCommand('Jimmy, stop speaking').kind, 'speech-stop');
-  for (const text of ['Jimmy, fullscreen', 'Jimmy, full screen', 'Show full UI', 'Open the full dashboard', 'Expand Jimmy']) {
+  for (const text of ['Jimmy, fullscreen', 'Jimmy, full screen', 'Show full UI', 'Open the full dashboard', 'Expand Jimmy', 'Open Dashboard', 'Show Dashboard', 'Show my dashboard', 'Open your dashboard']) {
     assert.deepEqual(parseVoiceCommand(text), { kind: 'desktop-view', expanded: true });
   }
   for (const text of ['Jimmy, compact mode', 'Return to the small circle', 'Collapse Jimmy', 'Circle mode', 'Jimmy, go small', 'Jimmy, switch to circle mode', 'Enter circle mode']) {
     assert.deepEqual(parseVoiceCommand(text), { kind: 'desktop-view', expanded: false });
   }
   assert.equal(parseVoiceCommand('Open fullscreen tutorial'), null);
+  for (const text of ['Minimize', 'Minimise', 'Jimmy, minimize', 'Minimize yourself', 'Minimize to tray', 'Hide yourself', 'Hide to the tray']) {
+    assert.deepEqual(parseVoiceCommand(text), { kind: 'desktop-hide' });
+  }
+  assert.deepEqual(parseVoiceCommand(assistantCommand('Nova, minimize Nova', 'Nova')), { kind: 'desktop-hide' });
+  assert.equal(parseVoiceCommand('Minimize memory usage'), null);
+  assert.equal(parseVoiceCommand('Show dashboard examples'), null);
   assert.equal(parseVoiceCommand('Tell me about small circles'), null);
   const { isJimmyShutdown, requestLocalApp } = await load('app/lib/desktop');
   assert.ok(isJimmyShutdown('Hey Jimmy, shut down'));

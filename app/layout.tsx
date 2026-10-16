@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Appearance from "./components/Appearance";
 import "./globals.css";
 
 const orbitron = localFont({
@@ -24,7 +25,7 @@ export default function RootLayout({
       lang="en"
       className={`${orbitron.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><Appearance />{children}</body>
     </html>
   );
 }
