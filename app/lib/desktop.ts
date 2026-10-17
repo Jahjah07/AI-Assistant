@@ -20,6 +20,7 @@ declare global {
       closeCanvas(): Promise<void>;
       setAssistantName(name: string): Promise<void>;
       onState(callback: (state: DesktopState) => void): () => void;
+      onOpenCanvas?(callback: () => void): () => void;
     };
   }
 }

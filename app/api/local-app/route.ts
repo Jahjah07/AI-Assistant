@@ -300,10 +300,10 @@ export async function POST(request: Request) {
     return Response.json({ action, app: appKey, displayName: app.displayName });
   } catch (error) {
     if (error instanceof AppDiscoveryError) return Response.json({ error: error.message }, { status: error.status });
-    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Local app command failed", error);
 
     return Response.json(
-      { error: `Could not complete the app command. ${message}` },
+      { error: "I couldn't complete that app command. Please try again." },
       { status: 500 },
     );
   }

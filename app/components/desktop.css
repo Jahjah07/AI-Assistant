@@ -87,6 +87,20 @@ html[data-jimmy-desktop="compact"] .activity-indicator { font-size: 7px; }
 }
 .desktop-drag { -webkit-app-region: drag; cursor: move; position: absolute; left: 0; padding: 4px 12px; font-size: 18px; user-select: none; }
 .desktop-open-core { position: absolute; inset: 27%; border-radius: 50%; background: transparent; }
+.reactor-stage { transition: transform 700ms cubic-bezier(.22, 1, .36, 1); }
+.jimmy-model-stage { position: fixed; inset: 0; z-index: 60; animation: model-reveal 650ms ease-out both; }
+.model-viewer, .model-viewport { width: 100%; height: 100%; }
+.model-viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.jimmy-shell[data-model] > :not(.reactor-stage):not(.jimmy-model-stage) { visibility: hidden; pointer-events: none; }
+.jimmy-shell[data-model] > .reactor-stage { z-index: 70; transform: translate(var(--model-reactor-x, 0px), var(--model-reactor-y, 0px)) scale(var(--model-reactor-scale, 1)); }
+.jimmy-shell[data-model] .reactor-eyebrow, .jimmy-shell[data-model] .reactor-status, .jimmy-shell[data-model] .reactor-date { font-size: calc(8px / var(--model-reactor-scale, 1)); letter-spacing: .12em; }
+.jimmy-shell[data-model] .reactor-clock { font-size: calc(20px / var(--model-reactor-scale, 1)); }
+.jimmy-shell[data-model] .reactor-clock span { font-size: calc(8px / var(--model-reactor-scale, 1)); margin-left: calc(4px / var(--model-reactor-scale, 1)); }
+.jimmy-shell[data-model] .reactor-name { font-size: calc(18px / var(--model-reactor-scale, 1)); }
+.model-return { position: absolute; inset: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.model-return:focus-visible { outline: 2px solid var(--ui-line); outline-offset: 6px; }
+@keyframes model-reveal { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .reactor-stage { transition: none; } .jimmy-model-stage { animation: none; } }
 .desktop-error { padding: 4px 8px; font-size: 11px; color: #f5d395; background: var(--ui-panel); border-radius: 8px; text-align: center; }
 html[data-jimmy-desktop], html[data-jimmy-desktop] body { background: transparent !important; overflow: hidden; }
 html[data-jimmy-desktop] main { min-height: 100dvh; background: transparent; }

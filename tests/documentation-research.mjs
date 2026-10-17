@@ -21,7 +21,7 @@ const pages = new Map([
   ['https://docs.python.org/3/huge', { text: 'x'.repeat(1024 * 1024 + 1) }],
 ]);
 try {
-  for (const source of ['app/api/_security', 'app/api/_limits', 'app/lib/memory-retrieval', 'app/lib/voice-commands', 'app/lib/todos', 'app/api/knowledge/store', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research', 'app/api/knowledge/route']) {
+  for (const source of ['app/api/_security', 'app/api/_limits', 'app/lib/memory-retrieval', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos', 'app/api/knowledge/store', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research', 'app/api/knowledge/route']) {
     const output = ts.transpileModule(await readFile(`${source}.ts`, 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true }); await writeFile(path.join(temporary, `${source}.mjs`), output);
   }

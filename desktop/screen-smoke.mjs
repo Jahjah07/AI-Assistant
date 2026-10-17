@@ -63,7 +63,7 @@ try {
   await page.route('**/api/voice-ticket', route => route.fulfill({ json: { url: 'ws://localhost/mock-voice' } }));
   await page.reload();
   await page.waitForFunction(() => !document.querySelector('.reactor-clock')?.textContent.includes('--'));
-  await page.getByRole('button', { name: 'Use mic / wake word', exact: true }).click();
+  await page.getByRole('button', { name: 'Wake-word mic on', exact: true }).waitFor();
   await page.waitForFunction(() => window.__voiceSocket?.onmessage);
   const command = text => page.evaluate(text => window.__voiceSocket.onmessage({ data: JSON.stringify({ type: 'final', text }) }), text);
   await command('Jimmy, compact mode');

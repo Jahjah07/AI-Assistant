@@ -194,6 +194,16 @@ try {
   replies.push({});
   assert.equal((await POST(request({ action: 'open', app: 'chatgpt' }))).status, 200, 'Website shortcuts still work');
   assert.match(calls.at(-1)[1].at(-1), /https:\/\/chatgpt.com\//);
+  const commandFailure = new Error('Command failed: powershell.exe -Command PRIVATE-SCRIPT-CONTENTS');
+  replies.push(commandFailure);
+  const loggedErrors = [], originalConsoleError = console.error;
+  console.error = (...details) => loggedErrors.push(details);
+  try {
+    const failed = await POST(request({ action: 'open', app: 'brave' }));
+    assert.equal(failed.status, 500);
+    assert.deepEqual(await failed.json(), { error: "I couldn't complete that app command. Please try again." });
+    assert.equal(loggedErrors[0][1], commandFailure, 'Diagnostics stay in server logs rather than chat or speech');
+  } finally { console.error = originalConsoleError; }
   if (process.platform === 'win32') {
     replies.push([]);
     assert.equal((await POST(request({ action: 'open', app: 'Missing' }))).status, 404);

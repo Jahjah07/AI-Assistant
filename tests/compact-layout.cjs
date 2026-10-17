@@ -4,6 +4,51 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+async function checkWakeStartup(main, BrowserWindow) {
+  await main.webContents.executeJavaScript(`localStorage.removeItem('jimmy.wake-word-mic'); localStorage.removeItem('jimmy.assistant-name')`);
+  const win = new BrowserWindow({ show: false, webPreferences: { preload: path.join(process.env.JIMMY_LAYOUT_TEST_DIR, 'wake-preload.cjs'), contextIsolation: false, nodeIntegration: false, backgroundThrottling: false } });
+  const run = code => win.webContents.executeJavaScript(code);
+  const wait = async condition => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await run(condition)) return;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw new Error('Wake startup condition timed out: ' + condition);
+  };
+  try {
+    await win.loadURL('http://127.0.0.1:3108');
+    await wait(`window.__voiceSocket?.onmessage && window.__audioContext?.state === 'running'`);
+    assert.equal(await run('window.__micRequests'), 1, 'Desktop must acquire its microphone automatically');
+    assert.equal(await run('window.__micTrack.enabled'), true);
+    await run(`window.__voiceSocket.onmessage({ data: JSON.stringify({ type: 'final', text: 'Jimmy' }) })`);
+    await wait(`window.__speech.length > 0`);
+    assert.equal(await run('(async () => (await window.jimmyDesktop.getState()).awake)()'), true, 'Spoken Jimmy wakes the desktop without clicking the mic');
+    assert.equal(await run('window.__lastChatBody'), undefined, 'Wake acknowledgement needs no chat inference');
+    await run(`document.querySelector('.canvas-launch').click()`);
+    await wait(`!!document.querySelector('dialog[open]')`);
+    await run(`window.__viewCalls = []; window.__voiceSocket.onmessage({ data: JSON.stringify({ type: 'final', text: 'Jimmy, close canvas and open dashboard' }) })`);
+    await wait(`!document.querySelector('dialog[open]') && document.documentElement.dataset.jimmyDesktop === 'expanded'`);
+    assert.deepEqual(await run('window.__viewCalls'), ['close-canvas', 'expand:true'], 'Spoken compound UI commands must execute in order');
+    assert.equal(await run('window.__lastChatBody'), undefined, 'Compound UI commands must execute without a chat request');
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Wake-word mic on').click()`);
+    await wait(`localStorage.getItem('jimmy.wake-word-mic') === 'false' && !window.__micTrack.enabled`);
+    await win.reload();
+    await wait(`document.querySelector('.reactor-face')?.textContent.includes('Wake-word mic off')`);
+    assert.equal(await run('window.__micRequests'), 0, 'Explicitly disabling the mic must survive restart');
+    await run(`[...document.querySelectorAll('button')].find(button => button.textContent === 'Use mic / wake word').click()`);
+    await wait(`window.__voiceSocket?.onmessage && localStorage.getItem('jimmy.wake-word-mic') === 'true'`);
+    await win.reload();
+    await wait(`window.__voiceSocket?.onmessage && window.__micTrack.enabled`);
+    assert.equal(await run('window.__micRequests'), 1, 'Enabled listening must resume after restart');
+    await run(`window.__desktopState({ expanded: false, awake: false, muted: true, phase: 'Ready', error: '' })`);
+    await wait(`!window.__micTrack.enabled`);
+    await run(`window.__voiceSocket.onmessage({ data: JSON.stringify({ type: 'final', text: 'Jimmy' }) })`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(await run('window.__speech.length'), 0, 'Muted wake words must remain ignored');
+  } finally { win.destroy(); }
+  console.log('Passed: desktop automatically starts and resumes wake listening, spoken name wakes and acknowledges, disabled preference persists, truthful mic-off status, and mute remains effective. Microphone, recognition and speech are simulated.');
+}
+
 async function checkCanvas(win, BrowserWindow) {
   const run = async code => {
     const result = await win.webContents.executeJavaScript(`(() => { try { return { value: eval(${JSON.stringify(code)}) }; } catch (error) { return { failure: String(error) }; } })()`);
@@ -19,13 +64,13 @@ async function checkCanvas(win, BrowserWindow) {
   };
   win.setSize(1200, 820);
   await run(`window.__desktopState({ expanded: true, muted: false, awake: true, phase: 'Ready', error: '' })`);
-  const send = async text => {
+  const ask = async text => {
     await run(`if (document.querySelector('dialog[open]')) [...document.querySelectorAll('dialog button')].find(button => button.textContent === 'Close canvas').click()`);
     await run(`(() => { const input = document.querySelector('#jimmy-chat input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(text)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await new Promise(resolve => setTimeout(resolve, 50));
     await run(`document.querySelector('#jimmy-chat form').requestSubmit()`);
-    await wait(`Boolean(document.querySelector('dialog[open]'))`);
   };
+  const send = async text => { await ask(text); await wait(`Boolean(document.querySelector('dialog[open]'))`); };
   const report = { title: 'Study plan · the week ahead', note: 'Example data for the interface test.', blocks: [
     { type: 'table', title: 'Your work, at a glance', columns: ['Subject', 'Hours', 'Priority'], rows: [['Presentation', 6, 'High'], ['Research', 4, 'Medium'], ['Review', 2, 'Medium']] },
     { type: 'chart', title: 'Time allocation', style: 'bar', unit: 'hours', points: [{ label: 'Presentation', value: 6 }, { label: 'Research', value: 4 }, { label: 'Review', value: 2 }] },
@@ -47,12 +92,74 @@ async function checkCanvas(win, BrowserWindow) {
     await wait(`document.querySelectorAll('.canvas-block').length === 4`, viewer);
     assert.equal(await viewer.webContents.executeJavaScript(`typeof window.require + ':' + typeof window.jimmyDesktop`), 'undefined:undefined');
     await viewer.webContents.executeJavaScript('document.fonts.ready');
+    const modelArgument = process.argv.indexOf('--model');
+    const modelPath = modelArgument >= 0 ? process.argv[modelArgument + 1] : null;
+    const previewBytes = modelPath ? await fs.readFile(modelPath) : Buffer.from('solid triangle\nfacet normal 0 -1 0\nouter loop\nvertex 0 0 0\nvertex 2 0 0\nvertex 0 0 2\nendloop\nendfacet\nendsolid triangle');
+    await viewer.webContents.executeJavaScript(`(() => {
+      const file = new File([Uint8Array.from(atob(${JSON.stringify(previewBytes.toString('base64'))}), character => character.charCodeAt(0))], ${JSON.stringify(modelPath ? path.basename(modelPath) : 'preview.stl')});
+      const transfer = new DataTransfer(); transfer.items.add(file);
+      const input = document.querySelector('input[type="file"]');
+      input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await wait(`document.querySelector('.model-viewer [role="status"]')?.textContent.includes('Drag to rotate')`);
+    assert.equal(await run(`document.querySelector('.model-viewer canvas').width > 0`), true, 'Model renders on the dashboard');
+    await run(`for (const key of ['ArrowLeft', 'ArrowRight', '+', '-', 'Home']) document.querySelector('.model-viewer canvas').dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))`);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    const focused = await run(`(() => { const reactor = document.querySelector('.reactor-stage').getBoundingClientRect(); return { width: reactor.width, right: innerWidth - reactor.right, bottom: innerHeight - reactor.bottom, controls: getComputedStyle(document.querySelector('.jimmy-bottom')).visibility, background: getComputedStyle(document.querySelector('main')).backgroundColor, text: getComputedStyle(document.querySelector('.reactor-core')).visibility }; })()`);
+    assert.ok(focused.width <= 181 && Math.abs(focused.right - 24) < 2 && Math.abs(focused.bottom - 24) < 2, JSON.stringify(focused));
+    assert.equal(focused.controls, 'hidden');
+    assert.equal(focused.text, 'visible', 'The reactor keeps its clock, status and date');
+    assert.notEqual(focused.background, 'rgba(0, 0, 0, 0)', 'The model keeps the dashboard background');
+    const modelScreenshot = await win.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+    assert.ok(modelScreenshot.toBitmap()[3] > 0, 'The dashboard background remains behind the model');
+    await fs.writeFile('.jimmy-runtime/model-focus-demo.png', modelScreenshot.toPNG());
+    win.setSize(390, 844);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    assert.equal(await run(`(() => { const reactor = document.querySelector('.reactor-stage').getBoundingClientRect(); return Math.abs(innerWidth - reactor.right - 24) < 2 && Math.abs(innerHeight - reactor.bottom - 24) < 2 && document.documentElement.scrollWidth <= innerWidth; })()`), true, 'The corner reactor stays on screen at phone width');
+    await fs.writeFile('.jimmy-runtime/model-focus-mobile.png', (await win.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+    win.setSize(1200, 820);
+    await run(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+    await wait(`!document.querySelector('.model-viewer') && !document.documentElement.hasAttribute('data-jimmy-model')`);
     await new Promise(resolve => setTimeout(resolve, 150));
     await fs.writeFile('.jimmy-runtime/canvas-demo.png', (await viewer.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
     await run(`window.__modelReply = ${JSON.stringify('Here is a line chart.\n```jimmy-canvas\n' + JSON.stringify({ title: 'Trend', blocks: [{ type: 'chart', style: 'line', points: [{ label: 'Jan', value: -4 }, { label: 'Feb', value: 0 }, { label: 'Mar', value: 8 }] }] }) + '\n```')}`);
     await send('Graph that table.');
     assert.ok((await run('window.__lastChatBody.canvasContext')).includes('Presentation'));
     assert.ok((await run('window.__lastChatBody.messages')).every(message => !('visual' in message)), 'Canvas payloads are not repeated in conversation history');
+    await wait(`document.querySelector('h1')?.textContent === 'Trend'`, viewer);
+    const fixture = path.join(process.env.JIMMY_LAYOUT_TEST_DIR, 'local-files');
+    await fs.mkdir(fixture, { recursive: true });
+    await fs.writeFile(path.join(fixture, 'gengar-keycap.stl'), 'solid triangle\nfacet normal 0 -1 0\nouter loop\nvertex 0 0 0\nvertex 2 0 0\nvertex 0 0 2\nendloop\nendfacet\nendsolid triangle');
+    const fileCommand = { kind: 'local-files', action: 'search', scope: fixture, query: 'gengar-keycap' };
+    await run(`window.__fileIntentReply = ${JSON.stringify({ command: fileCommand, question: '' })}`);
+    await ask('Could you dig up that gengar-keycap model I downloaded?');
+    await wait(`document.querySelector('.model-viewer [role="status"]')?.textContent.includes('Drag to rotate') && document.querySelector('.model-viewer')?.getAttribute('aria-label').includes('gengar-keycap.stl')`);
+    assert.ok((await viewer.webContents.executeJavaScript(`document.querySelector('table').innerText`)).includes('gengar-keycap.stl'), 'Local search results and preview reach the separate canvas');
+    assert.match(await run('window.__lastFileInterpret.text'), /Could you dig up/);
+    await ask('Close canvas and open dashboard');
+    await wait(`!document.querySelector('.model-viewer') && !document.querySelector('dialog[open]')`);
+    await run(`window.__fileIntentReply = ${JSON.stringify({ command: { ...fileCommand, query: 'Gengar K-Cups' }, question: '' })}`);
+    await send('Find the Gengar K-Cups.');
+    await wait(`document.querySelector('h1')?.textContent.includes('Possible matches')`, viewer);
+    assert.equal(await run(`!!document.querySelector('.model-viewer')`), false, 'Possible matches must not open automatically');
+    assert.equal(await run('window.__lastFileInterpret.previous.command.scope'), fixture, 'Repeated searches keep their previous folder context');
+    await viewer.webContents.executeJavaScript(`document.querySelector('button[aria-label="Preview gengar-keycap.stl"]').click()`);
+    await wait(`document.querySelector('.model-viewer [role="status"]')?.textContent.includes('Drag to rotate')`);
+    await ask('Close the model');
+    await wait(`!document.querySelector('.model-viewer') && document.documentElement.dataset.jimmyDesktop === 'expanded'`);
+    await run(`window.__fileIntentReply = { command: null, question: 'What is the model called?' }`);
+    await ask('Could you bring up my downloaded model?');
+    await wait(`document.querySelector('#jimmy-chat').innerText.includes('What is the model called?')`);
+    await run(`window.__fileIntentReply = ${JSON.stringify({ command: fileCommand, question: '' })}`);
+    await ask('gengar-keycap');
+    await wait(`document.querySelector('.model-viewer [role="status"]')?.textContent.includes('Drag to rotate')`);
+    assert.equal(await run('window.__lastFileInterpret.previous.question'), 'What is the model called?', 'Short answers retain clarification context');
+    assert.ok(!(await run('JSON.stringify(window.__lastFileInterpret)')).includes('entries'), 'File listings are not sent to the interpreter');
+    await ask('Go back to the dashboard');
+    await wait(`!document.querySelector('.model-viewer') && !document.documentElement.hasAttribute('data-jimmy-model')`);
+    await run(`window.__fileIntentReply = { command: null, question: '' }`);
+    await send('Summarize that canvas.');
+    assert.equal(await run('window.__lastChatBody.canvasContext'), undefined, 'Local file listings are excluded from AI requests');
     await wait(`document.querySelector('h1')?.textContent === 'Trend'`, viewer);
     await viewer.reload();
     await wait(`document.querySelector('h1')?.textContent === 'Trend'`, viewer);
@@ -80,7 +187,7 @@ async function checkCanvas(win, BrowserWindow) {
       await new Promise(resolve => setTimeout(resolve, 150));
       assert.equal(await other.webContents.executeJavaScript(`document.querySelectorAll('.canvas-block').length`), 0, 'Unrelated sessions do not receive this canvas data');
     } finally { other.destroy(); }
-    await run(`document.querySelector('.canvas-overlay button').click(); document.querySelector('button[aria-label="Voice settings"]').click()`);
+    await run(`[...document.querySelectorAll('.canvas-overlay button')].find(button => button.textContent === 'Close canvas').click(); document.querySelector('button[aria-label="Voice settings"]').click()`);
     await wait(`Boolean(document.querySelector('#voice-settings-title')?.closest('dialog[open]'))`);
     await run(`[...document.querySelectorAll('nav[aria-label="Settings sections"] button')].find(button => button.textContent === 'General').click()`);
     await wait(`Boolean(document.querySelector('#assistant-name'))`);
@@ -151,7 +258,7 @@ async function checkCanvas(win, BrowserWindow) {
     await send('Nova, explain this dataset.');
     assert.equal(await run('window.__lastChatBody.assistantName'), 'Nova', 'The new identity reaches chat requests');
     assert.equal(await run(`window.__lastChatBody.messages.at(-1).content`), 'explain this dataset.', 'Renamed typed commands reach the existing router');
-    await run(`document.querySelector('.canvas-overlay button').click()`);
+    await run(`[...document.querySelectorAll('.canvas-overlay button')].find(button => button.textContent === 'Close canvas').click()`);
     for (const expanded of [false, true]) {
       win.setSize(expanded ? 1200 : 200, expanded ? 820 : 312);
       await run(`window.__desktopState({ expanded: ${expanded}, muted: false, awake: false, phase: 'Waking up…', error: '' })`);
@@ -181,7 +288,7 @@ async function checkCanvas(win, BrowserWindow) {
     await command('Nova, show dashboard');
     await wait(`window.__expandCalls?.at(-1) === true`);
   } finally { viewer.destroy(); }
-  console.log('Passed: real chat → canvas, lists/tables/charts/diagrams, framed email data, to-do routing, concise speech, popup fallback, separate-window sync/reload, privacy, responsive width and rejected executable content. APIs mocked.');
+  console.log('Passed: real chat → canvas, lists/tables/charts/diagrams, local file search → model preview, file-listing privacy, framed email data, to-do routing, concise speech, popup fallback, separate-window sync/reload, responsive width and rejected executable content. AI/mail APIs mocked; local file API uses a fixture folder.');
 }
 
 async function main() {
@@ -227,6 +334,7 @@ async function main() {
     }
     console.log('Passed: real compact renderer at 200×312, journal on, all controls visible, no reactor overlap, and bounded error notices. No microphone or app commands used.');
     if (process.argv.includes('--canvas')) await checkCanvas(win, BrowserWindow);
+    if (process.argv.includes('--wake')) await checkWakeStartup(win, BrowserWindow);
     app.exit(0);
     return;
   }
@@ -238,12 +346,20 @@ async function main() {
   const preload = `
     let state = { expanded: false, muted: false, awake: false, phase: 'Ready', error: '' };
     window.jimmyDesktop = { getState: async () => state, wake: async () => { state = { ...state, awake: true }; return state; }, hide: async () => { window.__hideCount = (window.__hideCount || 0) + 1; }, expand: async expanded => { (window.__expandCalls ||= []).push(expanded); state = { ...state, expanded }; window.__desktopState(state); return state; }, onState: callback => { window.__desktopState = next => { state = next; callback(next); }; return () => {}; } };
+    window.jimmyDesktop.closeCanvas = async () => { (window.__viewCalls ||= []).push('close-canvas'); };
+    const expandWindow = window.jimmyDesktop.expand;
+    window.jimmyDesktop.expand = async expanded => { (window.__viewCalls ||= []).push('expand:' + expanded); return expandWindow(expanded); };
     window.open = url => { window.__canvasURL = url; return null; };
     window.__speech = [];
     window.__modelSettings = { keepLoaded: false, model: 'qwen3:4b-instruct', models: [{ name: 'qwen3:4b-instruct', size: 2e9 }, { name: 'friend:14b', size: 9e9 }], modelsError: '' };
     const originalFetch = window.fetch.bind(window);
     window.fetch = (url, options) => {
       if (!String(url).includes('/api/')) return originalFetch(url, options);
+      if (String(url).includes('/api/local-files')) {
+        const body = JSON.parse(options.body);
+        if (body.action === 'interpret') { window.__lastFileInterpret = body; return Promise.resolve(Response.json(window.__fileIntentReply || { command: null, question: '' })); }
+        return originalFetch(url, options);
+      }
       if (String(url).includes('/api/resources')) return Promise.resolve(Response.json({ error: 'Resources are not part of this UI fixture.' }, { status: 503 }));
       if (String(url).includes('/api/model-settings')) {
         if (options?.method === 'POST') { window.__lastModelSettingsBody = JSON.parse(options.body); Object.assign(window.__modelSettings, window.__lastModelSettingsBody); }
@@ -256,7 +372,35 @@ async function main() {
       return Promise.resolve(Response.json({ tools: [], signedIn: false, pending: false, keepLoaded: false, defaultVoice: 'am_michael' }));
     };
   `;
-  await fs.writeFile(path.join(temporary, 'preload.cjs'), preload);
+  await fs.writeFile(path.join(temporary, 'preload.cjs'), `localStorage.setItem('jimmy.wake-word-mic', 'false');\n${preload}`);
+  await fs.writeFile(path.join(temporary, 'wake-preload.cjs'), preload + `
+    window.__micRequests = 0;
+    window.__micTrack = { enabled: true, stop() {} };
+    navigator.mediaDevices.getUserMedia = async () => {
+      window.__micRequests++;
+      return { getTracks: () => [window.__micTrack], getAudioTracks: () => [window.__micTrack] };
+    };
+    window.AudioContext = class {
+      state = 'suspended'; sampleRate = 16000; destination = {};
+      constructor() { window.__audioContext = this; }
+      createMediaStreamSource() { return { connect() {}, disconnect() {} }; }
+      createScriptProcessor() { return { connect() {}, disconnect() {} }; }
+      createGain() { return { gain: { value: 0 }, connect() {}, disconnect() {} }; }
+      resume() { this.state = 'running'; return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+    };
+    window.Audio = class {
+      play() { this.onplaying?.(); setTimeout(() => this.onended?.(), 10); return Promise.resolve(); }
+      pause() { this.onpause?.(); }
+    };
+    window.WebSocket = class {
+      static OPEN = 1; readyState = 1;
+      constructor() { window.__voiceSocket = this; setTimeout(() => this.onmessage?.({ data: JSON.stringify({ type: 'ready' }) }), 10); }
+      send() {} close() { this.readyState = 3; }
+    };
+    const requestVoice = window.fetch;
+    window.fetch = (url, options) => String(url).includes('/api/voice-ticket') ? Promise.resolve(Response.json({ url: 'ws://localhost/mock-voice' })) : requestVoice(url, options);
+  `);
   const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3108'], { windowsHide: true, stdio: 'ignore' });
   try {
     let ready = false;

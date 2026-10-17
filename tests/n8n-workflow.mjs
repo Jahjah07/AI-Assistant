@@ -9,7 +9,7 @@ const temporary = await mkdtemp(path.join(tmpdir(), 'jimmy-n8n-'));
 const originalFetch = globalThis.fetch;
 const originalDirectory = process.cwd();
 try {
-  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/n8n-workflow/workflow', 'app/api/n8n-workflow/route', 'app/lib/voice-commands', 'app/lib/todos', 'app/api/knowledge/store', 'app/lib/memory-retrieval', 'app/api/model-settings/settings', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
+  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/n8n-workflow/workflow', 'app/api/n8n-workflow/route', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos', 'app/api/knowledge/store', 'app/lib/memory-retrieval', 'app/api/model-settings/settings', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
     const code = await readFile(`${source}.ts`, 'utf8');
     const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true });

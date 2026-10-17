@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 const cwd = process.cwd(), temporary = await mkdtemp(path.join(tmpdir(), 'jimmy-todos-'));
 try {
-  for (const source of ['app/lib/todos', 'app/lib/voice-commands', 'app/api/_security', 'app/api/_limits', 'app/api/todos/store', 'app/api/todos/route']) {
+  for (const source of ['app/lib/todos', 'app/lib/voice-commands', 'app/lib/local-files', 'app/api/_security', 'app/api/_limits', 'app/api/todos/store', 'app/api/todos/route']) {
     const compiled = ts.transpileModule(await readFile(source + '.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true }); await writeFile(path.join(temporary, source + '.mjs'), compiled);
   }

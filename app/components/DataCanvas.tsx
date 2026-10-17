@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { diagramLayout, type CanvasBlock, type CanvasDocument } from "../lib/canvas";
 import { useAssistantName } from "../lib/assistant-name";
 import "./data-canvas.css";
+import LocalFiles from "./LocalFiles";
+
 
 function Chart({ block }: { block: Extract<CanvasBlock, { type: "chart" }> }) {
   const minimum = Math.min(0, ...block.points.map(point => point.value));
@@ -50,16 +52,30 @@ function Diagram({ block }: { block: Extract<CanvasBlock, { type: "diagram" }> }
   </svg></div><details><summary>Read diagram relationships</summary><ul>{block.nodes.map(node => <li key={node.id}>{node.label}</li>)}</ul><ul>{block.edges.map((edge, index) => <li key={index}>{block.nodes.find(node => node.id === edge.from)!.label} → {block.nodes.find(node => node.id === edge.to)!.label}{edge.label ? ` (${edge.label})` : ""}</li>)}</ul></details></>;
 }
 
-export default function DataCanvas({ document, onClose, onSeparate }: { document: CanvasDocument | null; onClose?: () => void; onSeparate?: () => void }) {
+export default function DataCanvas({ document, onClose, onSeparate, onModel }: { document: CanvasDocument | null; onClose?: () => void; onSeparate?: () => void; onModel: (file: File) => void | Promise<void> }) {
   const name = useAssistantName();
+  const picker = useRef<HTMLInputElement>(null);
+  const [modelError, setModelError] = useState("");
   return <section className="data-canvas" aria-label={`${name} data canvas`}>
-    <header className="canvas-header"><div className="canvas-heading"><div className="canvas-identity"><span className="canvas-reactor" aria-hidden="true" /><span className="canvas-brand">{name.toUpperCase()} / CANVAS</span></div><h1>{document?.title || "Space to see the whole picture."}</h1></div><div className="canvas-actions">{onSeparate && <button onClick={onSeparate} type="button">Open separate window</button>}{onClose && <button onClick={onClose} type="button">Close canvas</button>}</div></header>
-    {!document ? <div className="canvas-empty"><span>YOUR DATA, WITH ROOM TO BREATHE</span><h2>Ask {name} to show it here.</h2><p>Lists and records become readable tables. Numbers become charts. Connections become diagrams.</p><div><p>“Check my emails.”</p><p>“Graph these monthly expenses.”</p><p>“Show a diagram of this process.”</p></div></div> : <>
+    <header className="canvas-header"><div className="canvas-heading"><div className="canvas-identity"><span className="canvas-reactor" aria-hidden="true" /><span className="canvas-brand">{name.toUpperCase()} / CANVAS</span></div><h1>{document?.title || "Space to see the whole picture."}</h1></div><div className="canvas-actions"><button type="button" onClick={() => picker.current?.click()}>Open 3D model</button>{onSeparate && <button onClick={onSeparate} type="button">Open separate window</button>}{onClose && <button onClick={onClose} type="button">Close canvas</button>}</div></header>
+    <input ref={picker} type="file" accept=".3mf,.glb,.stl" className="canvas-sr-only" tabIndex={-1} aria-label="Choose a 3D model" onChange={async event => {
+      const file = event.currentTarget.files?.[0];
+      event.currentTarget.value = "";
+      if (!file) return;
+      try {
+        const { validateModelFile } = await import("../lib/model-viewer");
+        validateModelFile(file);
+        setModelError("");
+        await onModel(file);
+      } catch (error) { setModelError(error instanceof Error ? error.message : "Could not open model."); }
+    }} />
+    {modelError && <p role="alert" className="canvas-note">{modelError}</p>}
+    {!document ? <div className="canvas-empty"><span>YOUR DATA, WITH ROOM TO BREATHE</span><h2>Ask {name} to show it here.</h2><p>Lists and records become readable tables. Numbers become charts. Connections become diagrams. Open a .3mf, .glb, or .stl file to view a model on the dashboard (up to 50 MB).</p><div><p>“Check my emails.”</p><p>“Graph these monthly expenses.”</p><p>“Show a diagram of this process.”</p></div></div> : <>
       <div className="canvas-meta"><span>{document.source || `${name}'s response · check model-generated facts`}</span><time dateTime={document.createdAt}>{new Date(document.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
       {document.note && <p className="canvas-note" role="status">{document.note}</p>}
       <div className="canvas-blocks">{document.blocks.map((block, index) => <article className="canvas-block" key={index} aria-label={block.title || block.type}>
         <div className="canvas-block-heading"><span>{String(index + 1).padStart(2, "0")} / {block.type}</span>{block.title && <h2>{block.title}</h2>}</div>
-        {block.type === "table" ? <div className="canvas-table-scroll" tabIndex={0} role="region" aria-label={block.title || "Data table"}><table><caption className="canvas-sr-only">{block.title || document.title}</caption><thead><tr>{block.columns.map((column, columnIndex) => <th scope="col" key={columnIndex}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((value, columnIndex) => <td key={columnIndex}>{value === null ? "—" : String(value)}</td>)}</tr>)}</tbody></table>{!block.rows.length && <p className="canvas-no-data">No matching records.</p>}</div>
+        {block.type === "files" ? <LocalFiles key={document.id} block={block} onPreview={onModel} /> : block.type === "table" ? <div className="canvas-table-scroll" tabIndex={0} role="region" aria-label={block.title || "Data table"}><table><caption className="canvas-sr-only">{block.title || document.title}</caption><thead><tr>{block.columns.map((column, columnIndex) => <th scope="col" key={columnIndex}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((value, columnIndex) => <td key={columnIndex}>{value === null ? "—" : String(value)}</td>)}</tr>)}</tbody></table>{!block.rows.length && <p className="canvas-no-data">No matching records.</p>}</div>
           : block.type === "list" ? block.items.length ? <ol className="canvas-list">{block.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol> : <p className="canvas-no-data">No items.</p>
           : block.type === "chart" ? <><div className="canvas-chart-scroll"><Chart block={block} /></div><details><summary>View chart data</summary><table><thead><tr><th scope="col">Label</th><th scope="col">Value {block.unit}</th></tr></thead><tbody>{block.points.map((point, pointIndex) => <tr key={pointIndex}><td>{point.label}</td><td>{point.value}</td></tr>)}</tbody></table></details></>
           : block.type === "diagram" ? <Diagram block={block} /> : <pre className="canvas-text">{block.text}</pre>}
@@ -68,9 +84,9 @@ export default function DataCanvas({ document, onClose, onSeparate }: { document
   </section>;
 }
 
-export function CanvasOverlay({ document, onClose, onSeparate }: { document: CanvasDocument | null; onClose: () => void; onSeparate: () => void }) {
+export function CanvasOverlay({ document, onClose, onSeparate, onModel }: { document: CanvasDocument | null; onClose: () => void; onSeparate: () => void; onModel: (file: File) => void | Promise<void> }) {
   const name = useAssistantName();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
-  return <dialog ref={dialog} className="canvas-overlay" aria-label={`${name} data canvas`} onCancel={event => { event.preventDefault(); onClose(); }}><DataCanvas document={document} onClose={onClose} onSeparate={onSeparate} /></dialog>;
+  return <dialog ref={dialog} className="canvas-overlay" aria-label={`${name} data canvas`} onCancel={event => { event.preventDefault(); onClose(); }}><DataCanvas document={document} onClose={onClose} onSeparate={onSeparate} onModel={onModel} /></dialog>;
 }

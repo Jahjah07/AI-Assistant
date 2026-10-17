@@ -56,7 +56,7 @@ try {
   });
   await page.waitForURL('http://127.0.0.1:3003/');
   await page.reload();
-  await page.getByRole('button', { name: 'Use mic / wake word', exact: true }).click();
+  await page.getByRole('button', { name: 'Wake-word mic on', exact: true }).waitFor();
   await page.waitForFunction(() => window.__socket && document.documentElement.dataset.jimmyDesktop === 'compact');
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   assert.equal(await page.evaluate(() => typeof window.process), 'undefined');

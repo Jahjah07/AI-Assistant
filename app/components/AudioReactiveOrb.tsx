@@ -5,7 +5,8 @@ import { nextSpeechChunk, speechText } from "../lib/speech-text";
 import { formatTodoTime, type TodoCommand, type TodoView } from "../lib/todos";
 import { isJimmyShutdown, requestLocalApp, type DesktopState } from "../lib/desktop";
 import "./desktop.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { selectTool, type ToolDescriptor } from "../lib/n8n-tool-routing";
 import { ChatBubbleIcon, Cross2Icon } from "@radix-ui/react-icons";
 import { parseBrowserLink } from "../lib/browser-links";
@@ -26,6 +27,9 @@ import { parseVoiceCommand, COMMAND_HELP, type VoiceCommand } from "../lib/voice
 import { canvasNarrative, readCanvasEvents, splitCanvasReply, type CanvasContent, type CanvasDocument, type CanvasBlock } from "../lib/canvas";
 import { useCanvasWorkspace } from "../lib/canvas-workspace";
 import { CanvasOverlay } from "./DataCanvas";
+import { loadLocalModel, mayBeFileRequest, type FileCommand, type FileRequestContext } from "../lib/local-files";
+
+const ModelViewer = dynamic(() => import("./ModelViewer"), { ssr: false });
 
 type AudioState = "idle" | "listening" | "blocked";
 type ChatMessage = {
@@ -88,6 +92,7 @@ type LocalCommand = VoiceCommand | BrowserSearch
   | ({ kind: "app" } & LocalAppCommand);
 
 const WAKE_VISUAL_WINDOW_MS = 12000;
+const WAKE_MIC_KEY = "jimmy.wake-word-mic";
 const COMMAND_ARM_WINDOW_MS = 45000;
 const LISTENING_REPLIES = ["Yes, Sir?"];
 const YOUTUBE_PLAY_REPLIES = [
@@ -182,6 +187,7 @@ export default function AudioReactiveOrb() {
   const silentGainRef = useRef<GainNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const lastBrowserSearchRef = useRef<BrowserSearch | null>(null);
+  const fileRequestRef = useRef<FileRequestContext | null>(null);
   const voiceSocketRef = useRef<WebSocket | null>(null);
   const voiceStartingRef = useRef(false);
   const realtimeVoiceReadyRef = useRef(false);
@@ -202,6 +208,34 @@ export default function AudioReactiveOrb() {
   }, [refreshReadTools]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatToggleRef = useRef<HTMLButtonElement>(null);
+  const reactorStageRef = useRef<HTMLDivElement>(null);
+  const { model: displayedModel, closeModel } = canvas;
+  useLayoutEffect(() => {
+    if (!displayedModel) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const defaultFocus = chatToggleRef.current;
+    const stage = reactorStageRef.current!;
+    document.documentElement.dataset.jimmyModel = "";
+    const positionReactor = () => {
+      const parent = stage.offsetParent!.getBoundingClientRect();
+      const size = Math.min(180, stage.offsetWidth);
+      stage.style.setProperty("--model-reactor-x", `${innerWidth - 24 - size / 2 - (parent.left + stage.offsetLeft + stage.offsetWidth / 2)}px`);
+      stage.style.setProperty("--model-reactor-y", `${innerHeight - 24 - size / 2 - (parent.top + stage.offsetTop + stage.offsetHeight / 2)}px`);
+      stage.style.setProperty("--model-reactor-scale", String(size / stage.offsetWidth));
+    };
+    positionReactor();
+    const observer = new ResizeObserver(positionReactor); observer.observe(stage);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); closeModel(); } };
+    window.addEventListener("resize", positionReactor);
+    window.addEventListener("keydown", escape);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", positionReactor);
+      window.removeEventListener("keydown", escape);
+      delete document.documentElement.dataset.jimmyModel;
+      if (previousFocus?.isConnected && previousFocus !== document.body) previousFocus.focus(); else defaultFocus?.focus();
+    };
+  }, [displayedModel, closeModel]);
   const planRef = useRef<TaskPlan | null>(null);
   const pendingTodoDayRef = useRef<string | null>(null);
   const pendingTodoTimeRef = useRef<string | undefined>(undefined);
@@ -290,23 +324,6 @@ export default function AudioReactiveOrb() {
   const youtubePlaylistParam = youtubeVideoIds
     .filter((videoId) => videoId !== youtubeVideoId)
     .join(",");
-
-  useEffect(() => {
-    const api = window.jimmyDesktop;
-    if (!api) return;
-    let disposed = false;
-    const update = (state: DesktopState) => {
-      if (disposed) return;
-      desktopMutedRef.current = state.muted;
-      desktopAwakeRef.current = state.awake;
-      streamRef.current?.getAudioTracks().forEach(track => { track.enabled = !state.muted && (continuousMicRef.current || talkingRef.current); });
-      setDesktop(state);
-      document.documentElement.dataset.jimmyDesktop = state.expanded ? "expanded" : "compact";
-    };
-    const unsubscribe = api.onState(update);
-    void api.getState().then(update);
-    return () => { disposed = true; unsubscribe(); delete document.documentElement.dataset.jimmyDesktop; };
-  }, []);
 
   const wakeDesktop = async () => {
     if (!window.jimmyDesktop || desktopAwakeRef.current) return;
@@ -1027,6 +1044,7 @@ export default function AudioReactiveOrb() {
   };
 
   const isNonCommandTranscript = (content: string) => {
+    if (fileRequestRef.current?.question && Date.now() < commandArmedUntilRef.current && content.trim()) return false;
     if (parseVoiceCommand(content)) return false;
     const withoutCaptions = NON_COMMAND_TRANSCRIPT_PATTERNS.reduce(
       (cleaned, pattern) => cleaned.replace(pattern, " "),
@@ -1333,11 +1351,60 @@ export default function AudioReactiveOrb() {
   };
 
   const runLocalCommand = async (content: string, command: LocalCommand, confirmed = false): Promise<void> => {
-    if (command.kind === "canvas") {
-      if (command.action === "open") canvas.show(); else canvas.hide();
-      const reply = command.action === "open" ? "Your data canvas is ready." : "Canvas hidden.";
+    if (command.kind === "ui-sequence" || command.kind === "canvas" || command.kind === "desktop-view" || command.kind === "desktop-hide") {
+      stopSpeech(); setChatError("");
+      const replies: string[] = [];
+      try {
+        for (const step of command.kind === "ui-sequence" ? command.commands : [command]) {
+          if (step.kind === "canvas") {
+            if (step.action === "open") canvas.show(); else await canvas.hide();
+            replies.push(step.action === "open" ? "Your data canvas is ready." : "Canvas hidden.");
+          } else if (step.kind === "desktop-hide") {
+            if (window.jimmyDesktop) {
+              await window.jimmyDesktop.hide();
+              replies.push(`Hidden to the tray. Say “${savedAssistantName()}, open dashboard” or use the tray icon to bring me back.`);
+            } else replies.push("Hiding to the tray is available in the desktop app.");
+          } else {
+            await window.jimmyDesktop?.expand(step.expanded);
+            canvas.closeModel();
+            if (step.expanded) setIsChatVisible(true);
+            replies.push(window.jimmyDesktop ? step.expanded ? "Full dashboard open, Sir." : "Back to the small circle, Sir."
+              : step.expanded ? "Your dashboard is open." : "Compact circle mode is available in the desktop app, Sir.");
+          }
+        }
+      } catch { replies.push("I couldn't finish the window commands. Please try again."); }
+      const reply = replies.join(" ");
       setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: reply }]);
       speak(reply); armFollowUpCommands(); return;
+    }
+    if (command.kind === "local-files") {
+      chatAbortRef.current?.abort(); stopSpeech();
+      if (command.action === "cancel") {
+        fileRequestRef.current = null;
+        chatAbortRef.current = null; setChatStatus("idle"); setAssistantMode("listening");
+        const reply = "Laptop scan cancelled. No files were changed.";
+        setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: reply }]);
+        speak(reply); armFollowUpCommands(); return;
+      }
+      fileRequestRef.current = { request: content.slice(0, 4000), command };
+      setChatError(""); setChatStatus("thinking"); setAssistantMode("thinking");
+      setMessages(current => [...current, { role: "user", content }]);
+      const controller = new AbortController(); chatAbortRef.current = controller;
+      try {
+        const response = await fetch("/api/local-files", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command), signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not scan your laptop.");
+        if (controller.signal.aborted) return;
+        const preview = (data.canvas as CanvasContent).blocks.find((block): block is Extract<CanvasBlock, { type: "files" }> => block.type === "files" && block.autoPreview === true && block.entries.length === 1 && !!block.entries[0].modelToken);
+        canvas.publish(preview ? { ...data.canvas, blocks: data.canvas.blocks.map((block: CanvasBlock) => block.type === "files" ? { ...block, autoPreview: false } : block) } : data.canvas, !preview);
+        if (preview) await canvas.openModel(await loadLocalModel(preview.entries[0], controller.signal));
+        setMessages(current => [...current, { role: "assistant", content: data.reply }]);
+        lastReplyRef.current = data.reply;
+        setLastBrain("local"); setRoutingNote("Read-only laptop scan; file listings stay on this device.");
+        speak(data.reply); armFollowUpCommands();
+      } catch (error) { if (!controller.signal.aborted) reportChatError(error instanceof Error ? error.message : "Could not scan your laptop."); }
+      finally { if (chatAbortRef.current === controller) { chatAbortRef.current = null; setChatStatus("idle"); setAssistantMode("listening"); } }
+      return;
     }
     if (command.kind === "todo") { await runTodoCommand(content, command); return; }
     pendingTodoDayRef.current = null;
@@ -1421,37 +1488,6 @@ export default function AudioReactiveOrb() {
           setAssistantMode("listening");
         }
       }
-      return;
-    }
-    if (command.kind === "desktop-hide") {
-      stopSpeech();
-      let reply = "Hiding to the tray is available in the desktop app.";
-      try {
-        if (window.jimmyDesktop) {
-          await window.jimmyDesktop.hide();
-          reply = `Hidden to the tray. Say “${savedAssistantName()}, open dashboard” or use the tray icon to bring me back.`;
-        }
-      } catch { reply = "I couldn't hide the window. Please try again."; }
-      setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: reply }]);
-      speak(reply); armFollowUpCommands(); return;
-    }
-    if (command.kind === "desktop-view") {
-      stopSpeech();
-      let reply = "The full interface is already open in your browser, Sir.";
-      try {
-        if (window.jimmyDesktop) {
-          await window.jimmyDesktop.expand(command.expanded);
-          if (command.expanded) setIsChatVisible(true);
-          reply = command.expanded ? "Full dashboard open, Sir." : "Back to the small circle, Sir.";
-        } else if (command.expanded) {
-          setIsChatVisible(true);
-        } else {
-          reply = "Compact circle mode is available in the desktop app, Sir.";
-        }
-      } catch { reply = "I couldn't change the window size. Please try again."; }
-      setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: reply }]);
-      speak(reply);
-      armFollowUpCommands();
       return;
     }
     if (command.kind.startsWith("speech-") || command.kind === "command-help") {
@@ -2102,7 +2138,7 @@ export default function AudioReactiveOrb() {
     content = assistantCommand(content);
     if (!content) return;
     const windowCommand = parseVoiceCommand(content);
-    if (windowCommand?.kind === "canvas" || windowCommand?.kind === "desktop-view" || windowCommand?.kind === "desktop-hide") {
+    if (windowCommand?.kind === "ui-sequence" || windowCommand?.kind === "canvas" || windowCommand?.kind === "desktop-view" || windowCommand?.kind === "desktop-hide") {
       await runLocalCommand(content, windowCommand); return;
     }
     if (pendingTodoDayRef.current && !(window.jimmyDesktop && isJimmyShutdown(content)) && !routeLocalCommand(content)) {
@@ -2141,8 +2177,34 @@ export default function AudioReactiveOrb() {
       reportChatError(error instanceof Error ? error.message : `${savedAssistantName()} could not wake up. Try again.`);
       return;
     }
-    const localCommand = routeLocalCommand(content);
+    let localCommand = routeLocalCommand(content);
     if (localCommand?.kind !== "browser-search") lastBrowserSearchRef.current = null;
+
+    if (localCommand?.kind === "local-files" && localCommand.action !== "cancel" || (!localCommand || ["browser-search", "app"].includes(localCommand.kind)) && mayBeFileRequest(content, fileRequestRef.current)) {
+      stopSpeech(); setChatError(""); setChatStatus("thinking"); setAssistantMode("thinking");
+      const controller = new AbortController(); chatAbortRef.current = controller;
+      try {
+        const previous = fileRequestRef.current;
+        const response = await fetch("/api/local-files", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "interpret", text: content, ...(previous ? { previous } : {}) }), signal: controller.signal });
+        const data = await response.json() as { command?: FileCommand | null; question?: string; error?: string };
+        if (!response.ok) throw new Error(data.error || "Could not interpret that laptop request.");
+        if (controller.signal.aborted) return;
+        if (data.command) {
+          chatAbortRef.current = null;
+          await runLocalCommand(content, data.command); return;
+        }
+        if (data.question) {
+          fileRequestRef.current = { request: (previous?.question ? `${previous.request}\n${content}` : content).slice(-4000), ...(previous?.command ? { command: previous.command } : {}), question: data.question };
+          setMessages(current => [...current, { role: "user", content }, { role: "assistant", content: data.question! }]);
+          speak(data.question); armFollowUpCommands(); return;
+        }
+        fileRequestRef.current = null;
+        if (localCommand?.kind === "local-files") localCommand = null;
+      } catch (error) {
+        if (!controller.signal.aborted) { setMessages(current => [...current, { role: "user", content }]); reportChatError(error instanceof Error ? error.message : "Could not interpret that laptop request."); }
+        return;
+      } finally { if (chatAbortRef.current === controller) { chatAbortRef.current = null; setChatStatus("idle"); setAssistantMode("listening"); } }
+    }
 
     if (localCommand && localCommand.kind !== "n8n-read") {
       await runLocalCommand(content, localCommand);
@@ -2153,6 +2215,8 @@ export default function AudioReactiveOrb() {
       rejectUnroutedUiCommand(content);
       return;
     }
+
+    fileRequestRef.current = null;
 
     setLastCommand("ollama:chat");
     const nextMessages: ChatMessage[] = [
@@ -2188,7 +2252,7 @@ export default function AudioReactiveOrb() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ messages: nextMessages.slice(-12).map(({ role, content }) => ({ role, content })), brain: brainRef.current, personality: savedPersonality(), assistantName: savedAssistantName(), localToolHistory: privateToolHistoryRef.current, gmailPage: gmailPageRef.current, canvas: true,
-          ...(/\b(?:canvas|chart|graph|diagram|table|that|these|those|it|them|above|which|compare|highest|lowest|largest|smallest|summari[sz]e|sort|filter|group)\b/i.test(content) && canvas.document ? { canvasContext: JSON.stringify({ title: canvas.document.title, blocks: canvas.document.blocks, source: canvas.document.source, note: canvas.document.note }).slice(0, 12000) } : {}) }),
+          ...(/\b(?:canvas|chart|graph|diagram|table|that|these|those|it|them|above|which|compare|highest|lowest|largest|smallest|summari[sz]e|sort|filter|group)\b/i.test(content) && canvas.document && !canvas.document.blocks.some(block => block.type === "files") ? { canvasContext: JSON.stringify({ title: canvas.document.title, blocks: canvas.document.blocks, source: canvas.document.source, note: canvas.document.note }).slice(0, 12000) } : {}) }),
         signal: chatController.signal,
       });
 
@@ -2604,6 +2668,7 @@ export default function AudioReactiveOrb() {
     if (!talkingRef.current) directVoiceTurnRef.current = false;
     continuousMicRef.current = !continuousMicRef.current;
     setContinuousMic(continuousMicRef.current);
+    try { localStorage.setItem(WAKE_MIC_KEY, String(continuousMicRef.current)); } catch { /* Listening still works when storage is unavailable. */ }
     if (continuousMicRef.current) {
       voiceDisposedRef.current = false;
       await startVoiceAssistant();
@@ -2611,6 +2676,36 @@ export default function AudioReactiveOrb() {
     }
     updateMicTracks();
   };
+
+  const startDesktopListening = useEffectEvent(async () => {
+    if (!window.jimmyDesktop) return;
+    try { if (localStorage.getItem(WAKE_MIC_KEY) === "false") return; } catch { /* Desktop listening defaults on. */ }
+    continuousMicRef.current = true;
+    setContinuousMic(true);
+    voiceDisposedRef.current = false;
+    try {
+      await startVoiceAssistant();
+      await audioContextRef.current?.resume();
+      updateMicTracks();
+    } catch { setMicError("Could not start the microphone. Toggle the wake-word mic to retry."); }
+  });
+
+  useEffect(() => {
+    const api = window.jimmyDesktop;
+    if (!api) return;
+    let disposed = false;
+    const update = (state: DesktopState) => {
+      if (disposed) return;
+      desktopMutedRef.current = state.muted;
+      desktopAwakeRef.current = state.awake;
+      streamRef.current?.getAudioTracks().forEach(track => { track.enabled = !state.muted && (continuousMicRef.current || talkingRef.current); });
+      setDesktop(state);
+      document.documentElement.dataset.jimmyDesktop = state.expanded ? "expanded" : "compact";
+    };
+    const unsubscribe = api.onState(update);
+    void api.getState().then(state => { update(state); if (!disposed) void startDesktopListening(); });
+    return () => { disposed = true; unsubscribe(); delete document.documentElement.dataset.jimmyDesktop; };
+  }, []);
 
   useEffect(() => {
     const stopHolding = () => {
@@ -2638,8 +2733,9 @@ export default function AudioReactiveOrb() {
   };
 
   return (
-    <div className="jimmy-shell relative grid h-full min-h-[620px] w-full place-items-center">
-      {canvas.inline && <CanvasOverlay document={canvas.document} onClose={canvas.hide} onSeparate={canvas.show} />}
+    <div className="jimmy-shell relative grid h-full min-h-[620px] w-full place-items-center" data-model={canvas.model ? "" : undefined}>
+      {canvas.model && <div className="jimmy-model-stage"><ModelViewer key={`${canvas.model.name}-${canvas.model.lastModified}`} file={canvas.model} onError={message => { canvas.closeModel(); reportChatError(`Could not open model: ${message}`); }} /></div>}
+      {canvas.inline && <CanvasOverlay document={canvas.document} onClose={canvas.hide} onSeparate={canvas.show} onModel={canvas.openModel} />}
       <div className="jimmy-bottom">
       {desktop?.error || partialTranscript || audioState === "blocked" || micError || (chatError && !isChatVisible) ? <div className="jimmy-notices">
         {desktop?.error ? <p role="alert" className="desktop-error">{desktop.error}</p> : null}
@@ -2671,7 +2767,7 @@ export default function AudioReactiveOrb() {
           brainRef.current = event.target.value; setBrain(event.target.value);
         }}><option value="auto">Auto · choose for the task</option><option value="qwen">Ollama · local</option><option value="codex">Codex · ChatGPT account</option></select></label>
         {brain !== "qwen" ? <><CodexAccount /><small id="brain-privacy" className="sr-only">{brain === "auto" ? "Auto may send coding or complex requests and saved memories to OpenAI when connected." : "Chat and saved memories are sent to OpenAI using your ChatGPT plan."}</small></> : null}
-        {lastBrain ? <small role="status" title={routingNote}>Last reply: {lastBrain === "codex" ? "Codex" : lastBrain === "screen" ? "Local vision" : "Local Ollama"}</small> : null}
+        {lastBrain ? <small role="status" title={routingNote}>Last reply: {lastBrain === "codex" ? "Codex" : lastBrain === "screen" ? "Local vision" : lastBrain === "local" ? "Local laptop" : "Local Ollama"}</small> : null}
       </div>
       </div>
       {desktop ? <div className="desktop-toolbar">
@@ -2697,9 +2793,9 @@ export default function AudioReactiveOrb() {
         suppressMicUntilRef.current = Date.now() + 500;
       }} />
       {(!desktop || desktop.expanded) && <ResourceMonitor />}
-      <div className="reactor-stage">
-        <ArcReactor speaking={isSpeaking} busy={isPreparingSpeech || chatStatus === "thinking" || imageStatus === "generating" || desktop?.phase === "Waking up…"} status={desktop?.muted ? "Mic muted" : desktop?.error ? "Needs attention" : micError && desktop ? "Mic unavailable" : desktop && !desktop.awake ? desktop.phase : statusLabel} />
-        {desktop && !desktop.expanded ? <button type="button" className="desktop-open-core" aria-label={`Open ${assistantName} chat`} onClick={() => void window.jimmyDesktop?.expand(true)} /> : null}
+      <div className="reactor-stage" ref={reactorStageRef}>
+        <ArcReactor speaking={isSpeaking} busy={isPreparingSpeech || chatStatus === "thinking" || imageStatus === "generating" || desktop?.phase === "Waking up…"} status={desktop?.muted ? "Mic muted" : desktop?.error ? "Needs attention" : micError && desktop ? "Mic unavailable" : desktop && !continuousMic ? "Wake-word mic off" : desktop && !voiceReady ? "Connecting microphone…" : desktop && !desktop.awake ? desktop.phase : statusLabel} />
+        {canvas.model ? <button type="button" className="model-return" aria-label="Return to dashboard" title="Return to dashboard · Escape" onClick={canvas.closeModel} /> : desktop && !desktop.expanded ? <button type="button" className="desktop-open-core" aria-label={`Open ${assistantName} chat`} onClick={() => void window.jimmyDesktop?.expand(true)} /> : null}
       </div>
       {youtubeVideoId || generatedImageUrl || imageStatus !== "idle" ? (
         <div className="absolute left-4 top-4 flex max-w-[calc(100vw-420px)] items-start gap-3 max-lg:bottom-28 max-lg:left-3 max-lg:top-auto max-lg:max-w-[min(92vw,760px)] max-lg:flex-col">

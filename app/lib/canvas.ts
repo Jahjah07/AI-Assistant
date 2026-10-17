@@ -1,5 +1,6 @@
 export type CanvasCell = string | number | boolean | null;
 export type CanvasBlock =
+  | { type: "files"; title?: string; entries: { name: string; path: string; bytes: number; modelToken?: string }[]; autoPreview?: boolean }
   | { type: "table"; title?: string; columns: string[]; rows: CanvasCell[][] }
   | { type: "list"; title?: string; items: string[] }
   | { type: "chart"; title?: string; style: "bar" | "line"; points: { label: string; value: number }[]; unit?: string }
@@ -18,6 +19,7 @@ export function validCanvasContent(value: unknown): value is CanvasContent {
   return value.blocks.every(block => {
     if (!object(block) || block.title !== undefined && !text(block.title, 200)) return false;
     switch (block.type) {
+      case "files": return (block.autoPreview === undefined || typeof block.autoPreview === "boolean") && Array.isArray(block.entries) && block.entries.length <= 100 && block.entries.every(entry => object(entry) && text(entry.name, 1000) && text(entry.path, 2000) && typeof entry.bytes === "number" && Number.isFinite(entry.bytes) && entry.bytes >= 0 && (entry.modelToken === undefined || typeof entry.modelToken === "string" && /^[a-f0-9-]{36}$/.test(entry.modelToken)));
       case "text": return text(block.text, 32000);
       case "list": return Array.isArray(block.items) && block.items.length <= 200 && block.items.every(item => text(item));
       case "table": return Array.isArray(block.columns) && block.columns.length > 0 && block.columns.length <= 16 && block.columns.every(item => text(item, 200)) &&

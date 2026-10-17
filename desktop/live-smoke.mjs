@@ -15,7 +15,7 @@ try {
   console.log('Starting real desktop services with a simulated microphone…');
   await page.waitForURL('http://127.0.0.1:3002/', { timeout: 300000 });
   await page.waitForFunction(() => document.documentElement.dataset.jimmyDesktop === 'compact');
-  await page.getByRole('button', { name: 'Use mic / wake word', exact: true }).click();
+  await page.getByRole('button', { name: 'Wake-word mic on', exact: true }).waitFor();
   const before = await fetch('http://127.0.0.1:8766/health').then(r => r.json());
   assert.equal(before.status.state, 'not_loaded', 'Kokoro remains unloaded before first wake');
   console.log('Cold startup ready: recognition active, Kokoro not loaded.');

@@ -10,7 +10,7 @@ import ts from 'typescript';
 const temporary = await mkdtemp(path.join(tmpdir(), 'jimmy-audio-'));
 const nativeExec = childProcess.execFile, nativeStorage = globalThis.localStorage;
 try {
-  for (const source of ['app/lib/audio-devices', 'app/lib/voice-commands', 'app/lib/todos', 'app/lib/browser-links', 'app/lib/browser-search', 'app/lib/local-apps', 'app/api/_security', 'app/api/_limits', 'app/api/local-app/installed', 'app/api/local-app/route']) {
+  for (const source of ['app/lib/audio-devices', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos', 'app/lib/browser-links', 'app/lib/browser-search', 'app/lib/local-apps', 'app/api/_security', 'app/api/_limits', 'app/api/local-app/installed', 'app/api/local-app/route']) {
     const code = ts.transpileModule(await readFile(source + '.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true }); await writeFile(path.join(temporary, source + '.mjs'), code);
   }

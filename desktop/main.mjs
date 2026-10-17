@@ -72,7 +72,7 @@ function updateMenu() {
     { type: 'separator' },
     { label: `Show floating ${assistantName}`, click: () => resize(false) },
     { label: 'Open chat / settings', click: () => resize(true) },
-    { label: 'Open canvas', enabled: !closing && trusted(win?.webContents.getURL()), click: () => { void openCanvas().catch(fail); } },
+    { label: 'Open canvas', enabled: !closing && trusted(win?.webContents.getURL()), click: () => { win.webContents.send('jimmy:show-canvas'); } },
     { label: 'Hide canvas to tray', enabled: Boolean(canvasWindow?.isVisible()), click: () => canvasWindow?.hide() },
     { label: 'Hide to tray (keeps listening)', click: hideAssistant },
     { label: 'Mute microphone', type: 'checkbox', checked: muted, click: item => { muted = item.checked; broadcast(); } },

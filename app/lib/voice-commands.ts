@@ -1,8 +1,15 @@
 import { parseTodoCommand, type TodoCommand } from "./todos";
+import { parseFileCommand, type FileCommand } from "./local-files";
 
-export type VoiceCommand =
-  | TodoCommand
+export type ViewCommand =
   | { kind: "canvas"; action: "open" | "close" }
+  | { kind: "desktop-view"; expanded: boolean }
+  | { kind: "desktop-hide" };
+export type VoiceCommand =
+  | ViewCommand
+  | { kind: "ui-sequence"; commands: ViewCommand[] }
+  | TodoCommand
+  | FileCommand
   | { kind: "speech-stop" }
   | { kind: "speech-repeat" }
   | { kind: "speech-speed"; direction: "slower" | "faster" | "normal" }
@@ -11,8 +18,6 @@ export type VoiceCommand =
   | { kind: "voice-volume"; percent: number }
   | { kind: "audio-settings"; page: "bluetooth" | "mixer" }
   | { kind: "screen-inspect" }
-  | { kind: "desktop-view"; expanded: boolean }
-  | { kind: "desktop-hide" }
   | { kind: "n8n-create"; prompt: string }
   | { kind: "task-plan"; prompt: string }
   | { kind: "knowledge-learn"; url: string }
@@ -22,10 +27,18 @@ export type VoiceCommand =
   | { kind: "command-help" };
 
 export function parseVoiceCommand(input: string): VoiceCommand | null {
+  const parts = input.split(/\s+(?:and(?:\s+then)?|then)\s+|;\s*/i);
+  if (parts.length > 1 && parts.length <= 4) {
+    const commands = parts.map(part => parseVoiceCommand(part));
+    if (commands.every((command): command is ViewCommand => command !== null && ["canvas", "desktop-view", "desktop-hide"].includes(command.kind))) return { kind: "ui-sequence", commands };
+  }
+  const file = parseFileCommand(input);
+  if (file) return file;
   const text = input.toLowerCase().trim()
     .replace(/^(?:hey\s+)?jimmy[\s,.:!-]*/, "")
-    .replace(/^please\s+/, "").replace(/[.!?,]+$/, "")
+    .replace(/^(?:(?:can|could|would) you\s+)?(?:please\s+)?/, "").replace(/[.!?,]+$/, "")
     .replace(/,?\s+please$/, "").trim();
+  if (/^(?:close|hide|exit|dismiss) (?:the |my |this )?(?:3d )?(?:model|model view|model viewer)$/.test(text) || /^(?:(?:go |take me )?back to|return to|bring back) (?:the |my )?dashboard$/.test(text)) return { kind: "desktop-view", expanded: true };
   if (/^(?:open|show|display) (?:the |my )?(?:canvas|blackboard|data canvas|black screen)$/.test(text)) return { kind: "canvas", action: "open" };
   if (/^(?:close|hide) (?:the |my )?(?:canvas|blackboard|data canvas|black screen)$/.test(text)) return { kind: "canvas", action: "close" };
   if (/^(?:stop (?:speaking|talking)|be quiet|quiet)$/.test(text)) return { kind: "speech-stop" };
@@ -71,4 +84,4 @@ export function parseVoiceCommand(input: string): VoiceCommand | null {
   return null;
 }
 
-export const COMMAND_HELP = "You can say: Time for work to open ChatGPT, Brave, and Visual Studio Code. Stop speaking. Repeat that. Speak slower, speak faster, or speak at normal speed. Change your voice to George. Can you see my screen? Open dashboard. Show dashboard. Fullscreen. Circle mode. Minimize to hide in the tray while listening continues. Jimmy, go small. Create an n8n workflow that does a task. Open my local n8n. Plan a task. Cancel plan. Create me a to-do list for tomorrow. Add a task to my to-do list. What is in my to-do list? Do I have something to do today? Mark task 1 done. Set task 1 to 3 PM. Add finish my slides to my to-do list for tomorrow at 3 PM. Hide to-do list. Open Bluetooth settings. Use laptop speakers for your voice. Set your voice volume to 30 percent. Open Windows volume mixer. Open canvas. Hide canvas. I can also tell the time and date, check the weather, open apps, open ChatGPT or configured website shortcuts, search the web or find images in your browser, control YouTube, remember things, and generate images. In the floating desktop app, say Jimmy, shut down to close Jimmy and unload its models. Say Jimmy before a command, or give a follow-up after my reply.";
+export const COMMAND_HELP = "You can say: Time for work to open ChatGPT, Brave, and Visual Studio Code. Stop speaking. Repeat that. Speak slower, speak faster, or speak at normal speed. Change your voice to George. Can you see my screen? Open dashboard. Close the model. Go back to the dashboard. Show dashboard. Fullscreen. Circle mode. Minimize to hide in the tray while listening continues. Jimmy, go small. Create an n8n workflow that does a task. Open my local n8n. Plan a task. Cancel plan. Create me a to-do list for tomorrow. Add a task to my to-do list. What is in my to-do list? Do I have something to do today? Mark task 1 done. Set task 1 to 3 PM. Add finish my slides to my to-do list for tomorrow at 3 PM. Hide to-do list. Open Bluetooth settings. Use laptop speakers for your voice. Set your voice volume to 30 percent. Open Windows volume mixer. Open canvas. Hide canvas. Find gengar-keycap in my Downloads and show it on the canvas. Find a file called invoice. What is making my storage full? Analyze storage in Downloads. Cancel scan. I can also tell the time and date, check the weather, open apps, open ChatGPT or configured website shortcuts, search the web or find images in your browser, control YouTube, remember things, and generate images. In the floating desktop app, say Jimmy, shut down to close Jimmy and unload its models. Say Jimmy before a command, or give a follow-up after my reply.";

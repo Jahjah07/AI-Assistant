@@ -8,7 +8,7 @@ import ts from 'typescript';
 const temp = await mkdtemp(path.join(tmpdir(), 'jimmy-screen-'));
 const originalFetch = globalThis.fetch;
 try {
-  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/screen/route', 'app/lib/assistant', 'app/lib/voice-commands', 'app/lib/todos']) {
+  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/screen/route', 'app/lib/assistant', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos']) {
     const code = await readFile(`${source}.ts`, 'utf8');
     const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temp, source)), { recursive: true });

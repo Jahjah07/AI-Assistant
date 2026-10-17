@@ -8,7 +8,7 @@ const temporary = await mkdtemp(path.join(tmpdir(), 'jimmy-plan-'));
 const originalFetch = globalThis.fetch;
 const originalDirectory = process.cwd();
 try {
-  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/plan/route', 'app/lib/planning', 'app/lib/voice-commands', 'app/lib/todos', 'app/api/knowledge/store', 'app/lib/memory-retrieval', 'app/api/model-settings/settings', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
+  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/plan/route', 'app/lib/planning', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos', 'app/api/knowledge/store', 'app/lib/memory-retrieval', 'app/api/model-settings/settings', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
     const output = ts.transpileModule(await readFile(`${source}.ts`, 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
     await mkdir(path.dirname(path.join(temporary, source)), { recursive: true });
     await writeFile(path.join(temporary, `${source}.mjs`), output);

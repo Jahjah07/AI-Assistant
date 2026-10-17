@@ -429,13 +429,80 @@ marked, and long cells are shortened. Gmail pagination remains available through
 Canvas follow-ups send at most 12,000 characters with an incomplete-excerpt notice.
 All saved to-do tasks remain available in Settings → To-do list.
 
-Run `node tests/canvas.mjs` for schema/parser/stream checks and
+Use **Open 3D model** in the canvas to display a local `.3mf`, `.glb`, or `.stl`
+file up to 50 MB on the dashboard. The other dashboard controls disappear,
+leaving the model centered over the dashboard background and the reactor shrinking
+into the bottom-right corner. The reactor keeps its text, clock, status and date;
+its corner size and typography keep those readable. The model has no separate
+background, frame, labels or visible controls. Drag to rotate,
+scroll to zoom, or right-drag to pan. Arrow keys rotate, plus/minus zoom, and Home
+resets the view. Press Escape or click the corner reactor to restore the dashboard.
+You can also say **“close the model”**, **“hide this 3D model”**, **“go back to the
+dashboard”**, or **“return to dashboard”**. These use the same dashboard action and
+work in combined window commands too.
+Reduced-motion preferences disable the transition. Desktop models use the expanded
+dashboard window.
+Files stay on your computer and are not sent to the chat model. Close a model to
+release its graphics resources, then choose the file again to reopen it.
+The viewer loads on demand and renders only when the view changes. Printer settings,
+animations, and some slicer-specific 3MF extensions are not previewed. GLB textures
+must be embedded. Compressed file size does not bound memory use for complex models.
+
+You can also ask **“Jimmy, find gengar-keycap in my Downloads and show it on the
+canvas”**, **“find a file called invoice”**, **“what's making my storage full?”**,
+or **“analyze storage in Downloads”**. These are examples, not required wording.
+Jimmy uses the selected local Ollama model to interpret file/storage requests:
+**“Could you dig up that gengar-keycap model I downloaded?”** and **“My laptop is
+nearly out of room—figure out what's eating it”** work too. Short follow-ups such
+as **“Maybe Desktop instead”** reuse the previous file request. If a filename is
+missing, Jimmy asks for it, and you can answer with just the name. Interpretation
+uses only your request and the previous file-request context, never scan results.
+Ollama must be available for this interpretation; other commands keep their existing
+routing, and **“cancel scan”** remains immediate.
+Search ignores filename capitalization,
+spaces and punctuation. If the full name has no match, Jimmy shows up to 20 possible
+matches sharing a distinctive word, so a misheard name such as “Gengar K-Cups” can
+still suggest `gengar-keycap.3mf`. Suggestions require choosing **Show model**;
+they never open automatically. Repeated “find…” requests keep the previous search
+folder unless you supply a different location. A single matching 3D file opens automatically; multiple
+matches appear with **Show model** buttons. Preview access expires after 15 minutes;
+search again if a preview expires or Jimmy restarts. Other files are listed with
+their paths and sizes; they are not executed or opened as documents.
+
+Laptop commands require authenticated localhost access. They scan local fixed
+drives, a named personal folder, or an absolute local folder path. Downloads and
+other personal folders follow Windows folder redirection. Scans skip links and
+inaccessible entries and stop after 20 seconds or 150,000 entries. Partial results
+are labeled; scan a smaller folder to investigate further, or say **“cancel scan”**.
+Storage reports show disk capacity, the largest scanned folder groups and largest
+files. Logical file totals can differ from allocated disk usage, especially for
+cloud placeholders, sparse files and hard links. Nothing is deleted or modified,
+and file listings are excluded from AI follow-up context. The text you type and
+the brief spoken summary still follow ordinary chat behavior.
+
+Run `node tests/local-files.mjs` for fixture-based search, storage, cancellation,
+preview access, mocked natural-language interpretation and endpoint security checks.
+Add `--live-intent` to check paraphrases and clarifications against local Ollama
+without scanning personal files.
+Run `node tests/model-viewer.cjs` for browser-based 3MF/GLB/STL loader, WebGL,
+file validation and cleanup checks. Run `node tests/canvas.mjs` for schema/parser/stream checks and
 `node tests/compact-layout.cjs --canvas` for isolated Electron rendering,
 window synchronization and chat/data separation checks using mocked APIs.
 
 ### UI
 
 Rename your assistant in **Settings → General → Assistant name → Save name**.
+The desktop starts wake-word listening automatically. Switching **Wake-word mic on**
+off saves that choice across restarts; click **Use mic / wake word** to enable it
+again. The reactor shows **Wake-word mic off** or **Connecting microphone…** until
+listening is available. Browser microphone access still starts from a direct click.
+Run `node tests/compact-layout.cjs --wake` to check startup, saved mic preferences,
+wake acknowledgement and mute using simulated audio.
+Window commands can be combined with **and**, **then**, **and then**, or a semicolon:
+**“Close canvas and open dashboard”** closes the canvas and restores the dashboard,
+including exiting the focused model view. Up to four canvas/dashboard/circle/tray
+actions run in order with one spoken reply. Every step must be recognized before
+the sequence runs; task titles and saved notes containing “and” stay intact.
 The name updates the reactor, chat, canvas, Windows tray labels, AI identity,
 and spoken wake name immediately. For example, say “Nova, open canvas”.
 The saved name is the wake word and is also used in voice previews. Long names

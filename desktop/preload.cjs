@@ -13,6 +13,11 @@ if (process.isMainFrame) contextBridge.exposeInMainWorld('jimmyDesktop', {
   openCanvas: session => ipcRenderer.invoke('jimmy:open-canvas', session),
   closeCanvas: () => ipcRenderer.invoke('jimmy:close-canvas'),
   setAssistantName: name => ipcRenderer.invoke('jimmy:assistant-name', name),
+  onOpenCanvas: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('jimmy:show-canvas', listener);
+    return () => ipcRenderer.removeListener('jimmy:show-canvas', listener);
+  },
   onState: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('jimmy:state-changed', listener);

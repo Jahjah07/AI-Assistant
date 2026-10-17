@@ -14,7 +14,7 @@ const originalLookup = dns.lookup;
 dns.lookup = async () => [{ address: '127.0.0.1', family: 4 }];
 const originalWindow = globalThis.window;
 try {
-  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/memory/store', 'app/api/activity/store', 'app/api/model-settings/settings', 'app/api/ollama-chat/route', 'app/api/ollama-chat/canvas-response', 'app/lib/canvas', 'app/api/n8n-tools/store', 'app/api/n8n-tools/run', 'app/api/n8n-tools/gmail-checks', 'app/lib/n8n-tool-routing', 'app/api/codex/client', 'app/api/codex/route', 'app/lib/assistant', 'app/lib/voice-commands', 'app/lib/todos', 'app/lib/desktop', 'app/lib/memory-retrieval', 'app/api/knowledge/store', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
+  for (const source of ['app/api/_security', 'app/api/_limits', 'app/api/memory/store', 'app/api/activity/store', 'app/api/model-settings/settings', 'app/api/ollama-chat/route', 'app/api/ollama-chat/canvas-response', 'app/lib/canvas', 'app/api/n8n-tools/store', 'app/api/n8n-tools/run', 'app/api/n8n-tools/gmail-checks', 'app/lib/n8n-tool-routing', 'app/api/codex/client', 'app/api/codex/route', 'app/lib/assistant', 'app/lib/voice-commands', 'app/lib/local-files', 'app/lib/todos', 'app/lib/desktop', 'app/lib/memory-retrieval', 'app/api/knowledge/store', 'app/api/knowledge/public-web', 'app/api/knowledge/publishers', 'app/api/knowledge/research']) {
     const code = await readFile(path.join(root, `${source}.ts`), 'utf8');
     const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
       .replace(/from "(\.[^"]+)"/g, 'from "$1.mjs"');
@@ -226,7 +226,15 @@ try {
   const { parseVoiceCommand } = await load('app/lib/voice-commands');
   assert.deepEqual(parseVoiceCommand('Jimmy, open canvas'), { kind: 'canvas', action: 'open' });
   assert.deepEqual(parseVoiceCommand('Hide the black screen'), { kind: 'canvas', action: 'close' });
+  const closeAndOpen = { kind: 'ui-sequence', commands: [{ kind: 'canvas', action: 'close' }, { kind: 'desktop-view', expanded: true }] };
+  for (const phrase of ['Close canvas and open dashboard', 'Jimmy, please hide the canvas and then show my dashboard.', 'Close canvas, then open dashboard', 'Close canvas; open dashboard']) assert.deepEqual(parseVoiceCommand(phrase), closeAndOpen);
+  assert.equal(parseVoiceCommand('Do not close canvas and open dashboard'), null);
+  assert.equal(parseVoiceCommand('Close canvas and delete my files'), null, 'Unrecognized steps must not partially execute a UI sequence');
+  assert.equal(parseVoiceCommand('Close canvas and open dashboard and hide canvas and circle mode and open dashboard'), null, 'UI sequences are bounded');
+  assert.deepEqual(parseVoiceCommand('Learn that bread and milk go together'), { kind: 'knowledge-note', text: 'bread and milk go together' }, 'Conjunctions inside task content must remain intact');
   assert.equal(parseVoiceCommand('Jimmy, stop speaking').kind, 'speech-stop');
+  for (const phrase of ['Close the model', 'Jimmy, close model', 'Hide this 3D model', 'Exit the model view', 'Dismiss the model viewer', 'Go back to the dashboard', 'Return to dashboard', 'Take me back to my dashboard', 'Bring back the dashboard', 'Could you please close the model?']) assert.deepEqual(parseVoiceCommand(phrase), { kind: 'desktop-view', expanded: true });
+  for (const phrase of ['Do not close the model', 'Explain how to close the model', 'Close model.exe', 'Go back to the dashboard examples']) assert.equal(parseVoiceCommand(phrase), null);
   for (const text of ['Jimmy, fullscreen', 'Jimmy, full screen', 'Show full UI', 'Open the full dashboard', 'Expand Jimmy', 'Open Dashboard', 'Show Dashboard', 'Show my dashboard', 'Open your dashboard']) {
     assert.deepEqual(parseVoiceCommand(text), { kind: 'desktop-view', expanded: true });
   }
